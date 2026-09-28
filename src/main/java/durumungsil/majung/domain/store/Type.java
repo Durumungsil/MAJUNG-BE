@@ -4,13 +4,9 @@ public enum Type {
     RETAIL("G2", "소매"),
     LODGING("I1", "숙박"),
     FOOD("I2", "음식"),
-    REAL_ESTATE("L1", "부동산"),
     SCIENCE_TECHNOLOGY("M1", "과학·기술"),
-    FACILITY_RENTAL("N1", "시설관리·임대"),
-    EDUCATION("P1", "교육"),
-    HEALTHCARE("Q1", "보건의료"),
-    ART_SPORTS("R1", "예술·스포츠"),
-    REPAIR_PERSONAL("S2", "수리·개인");
+    ART_SPORTS("R1", "예술·스포츠");
+    ;
 
     private final String code;
     private final String displayName;

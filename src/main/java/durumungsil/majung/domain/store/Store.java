@@ -7,14 +7,15 @@ import jakarta.persistence.*;
 public class Store {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "destination_id")
+    private Long destinationId;
 
-    private String sourceId;
-
-    private String name;
+    @Column(name = "destination_name")
+    private String destinationName;
 
     @Enumerated(EnumType.STRING)
-    private Type type;
+    @Column(name = "destination_type")
+    private Type destinationType;
 
     private Double latitude;
 

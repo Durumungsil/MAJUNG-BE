@@ -10,17 +10,13 @@ CATEGORY_CODES = {
     "G2": "RETAIL",
     "I1": "LODGING",
     "I2": "FOOD",
-    "L1": "REAL_ESTATE",
     "M1": "SCIENCE_TECHNOLOGY",
-    "N1": "FACILITY_RENTAL",
-    "P1": "EDUCATION",
-    "Q1": "HEALTHCARE",
     "R1": "ART_SPORTS",
-    "S2": "REPAIR_PERSONAL",
 }
 
+EXCLUDED_CATEGORY_CODES = {"L1", "N1", "P1", "Q1", "S2"}
+
 OUTPUT_FIELDS = (
-    "source_id",
     "name",
     "branch",
     "type",
@@ -49,11 +45,12 @@ def preprocess(source: Path, destination: Path) -> int:
 
         for line_number, row in enumerate(reader, start=2):
             category_code = clean(row.get("상권업종대분류코드"))
+            if category_code in EXCLUDED_CATEGORY_CODES:
+                continue
             if category_code not in CATEGORY_CODES:
                 raise ValueError(f"지원하지 않는 대분류 코드({category_code!r}) at line {line_number}")
 
             required = {
-                "상가업소번호": clean(row.get("상가업소번호")),
                 "상호명": clean(row.get("상호명")),
                 "경도": clean(row.get("경도")),
                 "위도": clean(row.get("위도")),
@@ -65,7 +62,6 @@ def preprocess(source: Path, destination: Path) -> int:
 
             writer.writerow(
                 {
-                    "source_id": required["상가업소번호"],
                     "name": required["상호명"],
                     "branch": clean(row.get("지점명")),
                     "type": CATEGORY_CODES[category_code],
