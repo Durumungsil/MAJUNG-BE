@@ -62,6 +62,10 @@ public class Trip {
     @Builder
     private Trip(Group group, String region, TripMode mode, TripStatus status,
                  LocalDate travelStartDate, LocalDate travelEndDate) {
+        if (travelStartDate != null && travelEndDate != null
+                && travelEndDate.isBefore(travelStartDate)) {
+            throw new IllegalArgumentException("여행 종료일은 시작일보다 빠를 수 없습니다.");
+        }
         this.group = group;
         this.region = region;
         this.mode = mode;

@@ -82,6 +82,9 @@ public class Mission {
 
     /** 힌트(로드뷰)를 한 번 열 때마다 호출. clear_rank 계산에 쓰인다 */
     public void useHint() {
+        if (status == MissionStatus.COMPLETED) {
+            throw new IllegalStateException("완료된 미션에서는 힌트를 사용할 수 없습니다.");
+        }
         this.hintCount++;
     }
 
@@ -111,6 +114,9 @@ public class Mission {
         if (status != MissionStatus.AVAILABLE) {
             throw new IllegalStateException("아직 진행할 수 없는 미션입니다.");
         }
+        if (now == null) {
+            throw new IllegalArgumentException("시작 시각은 필수입니다.");
+        }
         GeoUtils.validate(latitude, longitude);
         this.startedAt = now;
         this.startLatitude = latitude;
@@ -125,11 +131,15 @@ public class Mission {
         if (completedAt != null) {
             throw new IllegalStateException("이미 완료된 미션입니다.");
         }
-        this.completedAt = now;
-        this.status = MissionStatus.COMPLETED;
+        if (now == null || now.isBefore(startedAt)) {
+            throw new IllegalArgumentException("완료 시각은 시작 시각보다 빠를 수 없습니다.");
+        }
         int expectedMinutes = Rank.expectedWalkingMinutes(
                 store.distanceMetersFrom(startLatitude, startLongitude));
-        this.clearRank = Rank.of(hintCount, Duration.between(startedAt, completedAt), expectedMinutes);
+        Rank rank = Rank.of(hintCount, Duration.between(startedAt, now), expectedMinutes);
+        this.completedAt = now;
+        this.status = MissionStatus.COMPLETED;
+        this.clearRank = rank;
         return clearRank;
     }
 }

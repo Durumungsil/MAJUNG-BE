@@ -94,6 +94,7 @@ public class Store {
                   String sido, String sigungu, String address, String branch, Double rating, Integer pricePerPerson,
                   String phone, List<OpeningHour> openingHours, Set<String> amenities,
                   LocalDateTime lastSyncedAt) {
+        GeoUtils.validate(latitude, longitude);
         this.destinationName = destinationName;
         this.destinationType = destinationType;
         this.latitude = latitude;
@@ -129,17 +130,15 @@ public class Store {
     /** 외부 데이터 동기화 시 평점·상세 정보를 통째로 교체 */
     public void syncDetails(Double rating, Integer pricePerPerson, String phone, List<OpeningHour> openingHours,
                             Set<String> amenities, LocalDateTime syncedAt) {
+        List<OpeningHour> newOpeningHours = openingHours == null ? List.of() : new ArrayList<>(openingHours);
+        Set<String> newAmenities = amenities == null ? Set.of() : new HashSet<>(amenities);
         this.rating = rating;
         this.pricePerPerson = pricePerPerson;
         this.phone = phone;
         this.openingHours.clear();
-        if (openingHours != null) {
-            this.openingHours.addAll(openingHours);
-        }
+        this.openingHours.addAll(newOpeningHours);
         this.amenities.clear();
-        if (amenities != null) {
-            this.amenities.addAll(amenities);
-        }
+        this.amenities.addAll(newAmenities);
         this.lastSyncedAt = syncedAt;
     }
 
@@ -159,6 +158,8 @@ public class Store {
 
     /** 주어진 좌표에서 이 장소까지 직선거리(m) */
     public double distanceMetersFrom(double fromLatitude, double fromLongitude) {
+        GeoUtils.validate(fromLatitude, fromLongitude);
+        GeoUtils.validate(latitude, longitude);
         return GeoUtils.distanceMeters(fromLatitude, fromLongitude, latitude, longitude);
     }
 }

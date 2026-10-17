@@ -71,6 +71,9 @@ public class Itinerary {
 
     /** 일정이 하루 활동 시간(day_start_time ~ day_end_time) 안에 있는지. 기준이 없으면 true */
     public boolean isWithinDayHours(LocalTime startAt, LocalTime endAt) {
+        if (startAt == null || endAt == null || !endAt.isAfter(startAt)) {
+            throw new IllegalArgumentException("종료 시간이 시작 시간보다 늦어야 합니다.");
+        }
         if (dayStartTime == null || dayEndTime == null) {
             return true;
         }

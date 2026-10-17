@@ -23,8 +23,8 @@ public final class GeoUtils {
     }
 
     public static void validate(Double latitude, Double longitude) {
-        if (latitude == null || latitude < -90 || latitude > 90
-                || longitude == null || longitude < -180 || longitude > 180) {
+        if (latitude == null || !Double.isFinite(latitude) || latitude < -90 || latitude > 90
+                || longitude == null || !Double.isFinite(longitude) || longitude < -180 || longitude > 180) {
             throw new IllegalArgumentException("위도·경도 값이 올바르지 않습니다.");
         }
     }

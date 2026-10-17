@@ -84,7 +84,7 @@ public class Preference {
             this.transportTypes.addAll(transportTypes);
         }
         if (foodPreferences != null) {
-            this.foodPreferences.addAll(foodPreferences);
+            this.foodPreferences.addAll(copyValidFoodPreferences(foodPreferences));
         }
         this.allergies = allergies;
         this.travelCategories = travelCategories;
@@ -93,18 +93,29 @@ public class Preference {
 
     /** 그룹 의견 수집(PUT) 시 교통수단 목록을 통째로 교체 */
     public void changeTransportTypes(Set<TransportType> transportTypes) {
+        Set<TransportType> replacement = transportTypes == null ? Set.of() : new HashSet<>(transportTypes);
         this.transportTypes.clear();
-        if (transportTypes != null) {
-            this.transportTypes.addAll(transportTypes);
-        }
+        this.transportTypes.addAll(replacement);
     }
 
     /** 그룹 의견 수집(PUT) 시 음식 선호 목록을 통째로 교체 */
     public void changeFoodPreferences(List<FoodPreference> foodPreferences) {
+        List<FoodPreference> replacement = foodPreferences == null
+                ? List.of() : copyValidFoodPreferences(foodPreferences);
         this.foodPreferences.clear();
-        if (foodPreferences != null) {
-            this.foodPreferences.addAll(foodPreferences);
+        this.foodPreferences.addAll(replacement);
+    }
+
+    private static List<FoodPreference> copyValidFoodPreferences(List<FoodPreference> foodPreferences) {
+        List<FoodPreference> copy = new ArrayList<>(foodPreferences.size());
+        Set<String> foods = new HashSet<>();
+        for (FoodPreference preference : foodPreferences) {
+            if (preference == null || !foods.add(preference.getFood())) {
+                throw new IllegalArgumentException("음식 선호에는 중복되거나 비어 있는 항목을 넣을 수 없습니다.");
+            }
+            copy.add(preference);
         }
+        return copy;
     }
 
     /** 이전 회차 취향을 새 여행 회차로 복사 (불러와서 수정하기용) */
