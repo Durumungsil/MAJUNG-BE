@@ -1,0 +1,43 @@
+package durumungsil.majung.dto.preference.response;
+
+import durumungsil.majung.domain.preference.Allergy;
+import durumungsil.majung.domain.preference.Preference;
+import durumungsil.majung.domain.preference.TransportType;
+import durumungsil.majung.domain.preference.TravelCategory;
+import durumungsil.majung.global.util.EnumJsonArrays;
+
+import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
+
+/** loaded_from_previous - 현재 회차에 입력이 없어 이전 회차 취향을 불러왔으면 true */
+public record MyPreferenceResponse(
+        Long userId,
+        List<TransportType> transportTypes,
+        List<FoodPreferenceItem> foodPreferences,
+        List<Allergy> allergies,
+        List<TravelCategory> travelCategories,
+        Budget budget,
+        boolean loadedFromPrevious,
+        LocalDateTime updatedAt
+) {
+    public static MyPreferenceResponse of(Preference preference, boolean loadedFromPrevious) {
+        return new MyPreferenceResponse(
+                preference.getUser().getId(),
+                preference.getTransportTypes().stream().sorted(Comparator.naturalOrder()).toList(),
+                preference.getFoodPreferences().stream()
+                        .map(food -> new FoodPreferenceItem(food.getFood(), food.getScore()))
+                        .toList(),
+                EnumJsonArrays.fromJson(preference.getAllergies(), Allergy.class),
+                EnumJsonArrays.fromJson(preference.getTravelCategories(), TravelCategory.class),
+                new Budget(preference.getBudgetMax()),
+                loadedFromPrevious,
+                preference.getUpdatedAt());
+    }
+
+    public record FoodPreferenceItem(String food, Integer score) {
+    }
+
+    public record Budget(Integer max) {
+    }
+}

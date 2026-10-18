@@ -82,6 +82,27 @@ public class Trip {
         this.mode = mode;
     }
 
+    /** 아직 끝나지 않은 여행(PLANNING 또는 IN_PROGRESS)인지 */
+    public boolean isActive() {
+        return status == TripStatus.PLANNING || status == TripStatus.IN_PROGRESS;
+    }
+
+    public void changeRegion(String region) {
+        if (region == null || region.isBlank()) {
+            throw new IllegalArgumentException("지역은 비어 있을 수 없습니다.");
+        }
+        this.region = region;
+    }
+
+    /** 여행 기간 변경. 종료일은 시작일보다 빠를 수 없다 */
+    public void changeTravelPeriod(LocalDate travelStartDate, LocalDate travelEndDate) {
+        if (travelStartDate == null || travelEndDate == null || travelEndDate.isBefore(travelStartDate)) {
+            throw new IllegalArgumentException("여행 종료일은 시작일보다 빠를 수 없습니다.");
+        }
+        this.travelStartDate = travelStartDate;
+        this.travelEndDate = travelEndDate;
+    }
+
     /** 여행 일수. 시작일과 종료일을 모두 포함 (당일치기 = 1일) */
     public int getTravelDays() {
         if (travelStartDate == null || travelEndDate == null) {

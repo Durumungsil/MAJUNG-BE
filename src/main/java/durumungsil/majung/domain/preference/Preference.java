@@ -106,6 +106,16 @@ public class Preference {
         this.foodPreferences.addAll(replacement);
     }
 
+    /** 그룹 의견 수집(PUT) - 취향 전체를 통째로 교체 */
+    public void replace(Set<TransportType> transportTypes, List<FoodPreference> foodPreferences,
+                        String allergies, String travelCategories, Integer budgetMax) {
+        changeTransportTypes(transportTypes);
+        changeFoodPreferences(foodPreferences);
+        this.allergies = allergies;
+        this.travelCategories = travelCategories;
+        this.budgetMax = budgetMax;
+    }
+
     private static List<FoodPreference> copyValidFoodPreferences(List<FoodPreference> foodPreferences) {
         List<FoodPreference> copy = new ArrayList<>(foodPreferences.size());
         Set<String> foods = new HashSet<>();

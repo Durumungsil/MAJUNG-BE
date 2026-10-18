@@ -25,6 +25,10 @@ public class Group {
     /** 초대 코드 유효 기간 */
     public static final Duration INVITE_CODE_VALID_DURATION = Duration.ofDays(1);
 
+    /** 그룹 인원 제한 범위 */
+    public static final int MIN_MEMBERS = 2;
+    public static final int MAX_MEMBERS = 16;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -89,6 +93,50 @@ public class Group {
         }
         issueInviteCode(codeGenerator.get(), now);
         return true;
+    }
+
+    /** 초대 코드가 이 그룹의 코드와 같고 아직 유효한지 */
+    public boolean isValidInviteCode(String inviteCode, LocalDateTime now) {
+        return this.inviteCode != null && this.inviteCode.equals(inviteCode) && !isInviteCodeExpired(now);
+    }
+
+    public boolean isFull() {
+        return memberCount != null && maxMembers != null && memberCount >= maxMembers;
+    }
+
+    /** 멤버 참여 시 인원 증가. 멤버 행(GroupMember) 저장은 서비스에서 함께 한다 */
+    public void increaseMemberCount() {
+        if (isFull()) {
+            throw new IllegalStateException("그룹 인원이 가득 찼습니다.");
+        }
+        this.memberCount = memberCount + 1;
+    }
+
+    /** 멤버 탈퇴 시 인원 감소 */
+    public void decreaseMemberCount() {
+        if (memberCount == null || memberCount <= 0) {
+            throw new IllegalStateException("그룹 인원이 올바르지 않습니다.");
+        }
+        this.memberCount = memberCount - 1;
+    }
+
+    public void changeGroupName(String groupName) {
+        if (groupName == null || groupName.isBlank()) {
+            throw new IllegalArgumentException("그룹명은 비어 있을 수 없습니다.");
+        }
+        this.groupName = groupName;
+    }
+
+    /** 인원 제한 변경. 2~16명이고 현재 인원보다 작을 수 없다 */
+    public void changeMaxMembers(int maxMembers) {
+        if (!isValidMaxMembers(maxMembers) || (memberCount != null && maxMembers < memberCount)) {
+            throw new IllegalArgumentException("여행 기간 또는 인원 제한이 올바르지 않습니다.");
+        }
+        this.maxMembers = maxMembers;
+    }
+
+    public static boolean isValidMaxMembers(Integer maxMembers) {
+        return maxMembers != null && maxMembers >= MIN_MEMBERS && maxMembers <= MAX_MEMBERS;
     }
 
     public boolean isOwner(Long userId) {
