@@ -38,7 +38,7 @@ public class GlobalExceptionHandler {
         return toResponse(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_INPUT.getMessage());
     }
 
-    /** 필수 헤더 누락 (X-User-Id 등) */
+    /** 필수 헤더 누락 */
     @ExceptionHandler(MissingRequestHeaderException.class)
     public ResponseEntity<ErrorResponse> handleMissingHeader(MissingRequestHeaderException e) {
         return toResponse(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_INPUT.getMessage());

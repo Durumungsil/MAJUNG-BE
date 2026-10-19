@@ -42,4 +42,14 @@ public class User {
         this.email = email;
         this.userName = userName;
     }
+
+    /** 구글 로그인할 때마다 최신 프로필로 갱신 (값이 없으면 기존 값 유지) */
+    public void updateProfile(String email, String userName) {
+        if (email != null) {
+            this.email = email;
+        }
+        if (userName != null) {
+            this.userName = userName;
+        }
+    }
 }

@@ -9,11 +9,12 @@ import durumungsil.majung.dto.group.response.GroupListResponse;
 import durumungsil.majung.dto.group.response.SelectModeResponse;
 import durumungsil.majung.dto.group.response.UpdateGroupResponse;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.RequestHeader;
 import durumungsil.majung.global.response.ApiResponse;
+import durumungsil.majung.global.security.AuthUser;
 import durumungsil.majung.service.GroupService;
 import durumungsil.majung.service.TripService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,39 +36,39 @@ public class GroupController {
     /** 그룹 생성 */
     @PostMapping
     public ResponseEntity<ApiResponse<CreateGroupResponse>> createGroup(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal AuthUser authUser,
             @Valid @RequestBody CreateGroupRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("그룹이 생성되었습니다.", groupService.createGroup(userId, request)));
+                .body(ApiResponse.success("그룹이 생성되었습니다.", groupService.createGroup(authUser.id(), request)));
     }
 
     /** 그룹 목록 조회 */
     @GetMapping
-    public ApiResponse<GroupListResponse> getMyGroups(@RequestHeader("X-User-Id") Long userId) {
-        return ApiResponse.success("그룹 목록을 조회했습니다.", groupService.getMyGroups(userId));
+    public ApiResponse<GroupListResponse> getMyGroups(@AuthenticationPrincipal AuthUser authUser) {
+        return ApiResponse.success("그룹 목록을 조회했습니다.", groupService.getMyGroups(authUser.id()));
     }
 
     /** 그룹 상세 조회 */
     @GetMapping("/{groupId}")
-    public ApiResponse<GroupDetailResponse> getGroup(@RequestHeader("X-User-Id") Long userId, @PathVariable Long groupId) {
-        return ApiResponse.success("그룹 정보를 조회했습니다.", groupService.getGroup(userId, groupId));
+    public ApiResponse<GroupDetailResponse> getGroup(@AuthenticationPrincipal AuthUser authUser, @PathVariable Long groupId) {
+        return ApiResponse.success("그룹 정보를 조회했습니다.", groupService.getGroup(authUser.id(), groupId));
     }
 
     /** 그룹 설정 수정 */
     @PatchMapping("/{groupId}")
     public ApiResponse<UpdateGroupResponse> updateGroup(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal AuthUser authUser,
             @PathVariable Long groupId,
             @Valid @RequestBody UpdateGroupRequest request) {
-        return ApiResponse.success("그룹 설정이 수정되었습니다.", groupService.updateGroup(userId, groupId, request));
+        return ApiResponse.success("그룹 설정이 수정되었습니다.", groupService.updateGroup(authUser.id(), groupId, request));
     }
 
     /** 모드 선택 */
     @PatchMapping("/{groupId}/mode")
     public ApiResponse<SelectModeResponse> selectMode(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal AuthUser authUser,
             @PathVariable Long groupId,
             @Valid @RequestBody SelectModeRequest request) {
-        return ApiResponse.success("그룹 모드가 확정되었습니다.", tripService.selectMode(userId, groupId, request.mode()));
+        return ApiResponse.success("그룹 모드가 확정되었습니다.", tripService.selectMode(authUser.id(), groupId, request.mode()));
     }
 }

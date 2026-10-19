@@ -4,11 +4,12 @@ import durumungsil.majung.dto.group.request.JoinGroupRequest;
 import durumungsil.majung.dto.group.response.InviteCodeResponse;
 import durumungsil.majung.dto.group.response.JoinGroupResponse;
 import durumungsil.majung.dto.group.response.VerifyInviteCodeResponse;
-import org.springframework.web.bind.annotation.RequestHeader;
 import durumungsil.majung.global.response.ApiResponse;
+import durumungsil.majung.global.security.AuthUser;
 import durumungsil.majung.service.GroupInvitationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,25 +28,25 @@ public class GroupInvitationController {
 
     /** 그룹 초대 코드 조회 */
     @GetMapping("/{groupId}/code")
-    public ApiResponse<InviteCodeResponse> getInviteCode(@RequestHeader("X-User-Id") Long userId, @PathVariable Long groupId) {
-        return ApiResponse.success("그룹 정보를 조회했습니다.", groupInvitationService.getInviteCode(userId, groupId));
+    public ApiResponse<InviteCodeResponse> getInviteCode(@AuthenticationPrincipal AuthUser authUser, @PathVariable Long groupId) {
+        return ApiResponse.success("그룹 정보를 조회했습니다.", groupInvitationService.getInviteCode(authUser.id(), groupId));
     }
 
     /** 초대 코드 검증 */
     @GetMapping("/invitations/{inviteCode}")
     public ApiResponse<VerifyInviteCodeResponse> verifyInviteCode(
-            @RequestHeader("X-User-Id") Long userId, @PathVariable String inviteCode) {
-        return ApiResponse.success("유효한 초대 코드입니다.", groupInvitationService.verifyInviteCode(userId, inviteCode));
+            @AuthenticationPrincipal AuthUser authUser, @PathVariable String inviteCode) {
+        return ApiResponse.success("유효한 초대 코드입니다.", groupInvitationService.verifyInviteCode(authUser.id(), inviteCode));
     }
 
     /** 그룹 참여 */
     @PostMapping("/{groupId}/invitations")
     public ResponseEntity<ApiResponse<JoinGroupResponse>> joinGroup(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal AuthUser authUser,
             @PathVariable Long groupId,
             @Valid @RequestBody JoinGroupRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("그룹에 참여했습니다.",
-                        groupInvitationService.joinGroup(userId, groupId, request.inviteCode())));
+                        groupInvitationService.joinGroup(authUser.id(), groupId, request.inviteCode())));
     }
 }

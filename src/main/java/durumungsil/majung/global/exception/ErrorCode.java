@@ -12,6 +12,14 @@ public enum ErrorCode {
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "요청 값이 올바르지 않습니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
 
+    // 인증
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
+    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않거나 만료된 토큰입니다."),
+    INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않거나 만료된 리프레시 토큰입니다. 다시 로그인해 주세요."),
+    INVALID_GOOGLE_TOKEN(HttpStatus.UNAUTHORIZED, "구글 인증에 실패했습니다."),
+    GOOGLE_AUTH_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "구글 인증 서버와 통신하지 못했습니다. 잠시 후 다시 시도해 주세요."),
+    ACCESS_DENIED(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
+
     // 유저
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 사용자입니다."),
 
