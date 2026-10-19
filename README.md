@@ -50,3 +50,7 @@ refactor: 상권 조회 로직 서비스 계층으로 분리
 
 - 예: `feature/store-entity`, `fix/db-connection`, `refactor/area-service`
 - `main` 브랜치에 직접 push 하지 않고, PR을 통해 머지합니다.
+
+## 모험모드
+
+[API·동작 정책·설정·검증 방법](docs/adventure-mode.md)을 참고합니다.

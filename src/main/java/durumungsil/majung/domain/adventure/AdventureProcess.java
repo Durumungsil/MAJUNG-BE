@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * 자동 여행 커리큘럼 생성 / 진행도 조회.
@@ -48,12 +48,12 @@ public class AdventureProcess {
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Builder
     private AdventureProcess(Trip trip, LocalDate travelDate, AdventureStatus status,
                              Integer missionCount, Integer destinationCount) {
-        if (travelDate == null || !trip.includes(travelDate)) {
+        if (trip == null || travelDate == null || !trip.includes(travelDate)) {
             throw new IllegalArgumentException("모험 날짜는 여행 기간 안이어야 합니다.");
         }
         this.trip = trip;
@@ -61,5 +61,16 @@ public class AdventureProcess {
         this.status = status != null ? status : AdventureStatus.READY;
         this.missionCount = missionCount;
         this.destinationCount = destinationCount;
+    }
+
+    public void start() {
+        if (status == AdventureStatus.COMPLETED) {
+            throw new IllegalStateException("이미 완료된 커리큘럼입니다.");
+        }
+        this.status = AdventureStatus.IN_PROGRESS;
+    }
+
+    public void finish() {
+        this.status = AdventureStatus.COMPLETED;
     }
 }
