@@ -1,5 +1,9 @@
 # MAJUNG-BE
 
+## 그룹 API의 임시 인증 설정
+
+인증 구현과 연결하기 전에는 기본 환경의 요청을 차단합니다. `X-User-Id`로 호출하는 방식은 `SPRING_PROFILES_ACTIVE=local`인 개인 개발 환경에서만 허용합니다. 공유·운영 환경에서는 `local`을 활성화하지 않습니다. OAuth 브랜치를 적용하면 인증된 principal을 사용합니다.
+
 ## Commit Convention
 
 ### 형식
