@@ -134,6 +134,15 @@ class GroupRegressionTests {
                 new SavePreferenceRequest.Budget(10000));
     }
 
+    @Test
+    void mvcRoutingErrorsKeepTheirStatus() throws Exception {
+        var mvc = MockMvcBuilders.webAppContextSetup(context).build();
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/missing"))
+                .andExpect(status().isNotFound());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/groups/1/preferences"))
+                .andExpect(status().isMethodNotAllowed());
+    }
+
     private static void await(CountDownLatch latch) {
         try {
             if (!latch.await(10, TimeUnit.SECONDS)) throw new AssertionError("잠금 대기 시간 초과");
