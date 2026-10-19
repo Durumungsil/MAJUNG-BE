@@ -1,8 +1,10 @@
 # MAJUNG-BE
 
-## 그룹 API의 임시 인증 설정
+## 인증
 
-인증 구현과 연결하기 전에는 기본 환경의 요청을 차단합니다. `X-User-Id`로 호출하는 방식은 `SPRING_PROFILES_ACTIVE=local`인 개인 개발 환경에서만 허용합니다. 공유·운영 환경에서는 `local`을 활성화하지 않습니다. OAuth 브랜치를 적용하면 인증된 principal을 사용합니다.
+Google ID 토큰을 `POST /api/v1/auth/google`에 전달해 access/refresh 토큰을 발급받습니다. 이후 API에는 `Authorization: Bearer {access_token}`을 전달합니다. `X-User-Id`로 사용자를 지정할 수 없습니다. Google 클라이언트 ID와 JWT 서명 키는 `GOOGLE_CLIENT_IDS`, `JWT_SECRET` 환경변수로 설정합니다. 서명 키는 32바이트 이상이며 토큰 유효 기간은 1초 이상이어야 합니다.
+
+모험모드 브랜치를 함께 적용하면 모험·미션 API에도 인증과 그룹 소속 검사를 적용합니다. `AdventureAuthIntegrationTests`는 모험 컨트롤러가 있을 때 로그인 사용자·그룹 권한·미션 시작과 완료를 함께 검증합니다.
 
 ## Commit Convention
 

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MAJUNG 로그인 테스트</title>
+  <!--
+    로컬 개발용 로그인 테스트 페이지 (배포 X)
+    실행: python3 -m http.server 5173 -d scripts  →  http://localhost:5173/login-test.html
+    구글 콘솔 "승인된 JavaScript 원본"에 http://localhost:5173, http://localhost 등록 필요
+  -->
+  <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogle()"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 760px; margin: 32px auto; padding: 0 16px; color: #222; }
+    h1 { font-size: 20px; }
+    fieldset { border: 1px solid #ddd; border-radius: 8px; margin-bottom: 16px; padding: 12px 16px; }
+    legend { font-weight: 600; padding: 0 4px; }
+    label { display: block; font-size: 13px; color: #555; margin: 6px 0 2px; }
+    input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-family: monospace; font-size: 12px; }
+    button { margin: 8px 8px 0 0; padding: 8px 12px; border: 1px solid #888; border-radius: 6px; background: #fff; cursor: pointer; }
+    button:hover { background: #f3f3f3; }
+    pre { background: #f6f8fa; border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+    .status { font-weight: 600; }
+    .ok { color: #1a7f37; } .err { color: #cf222e; }
+  </style>
+</head>
+<body>
+<h1>MAJUNG 로그인 테스트</h1>
+
+<fieldset>
+  <legend>1. 설정</legend>
+  <label for="clientId">구글 클라이언트 ID (.env 의 GOOGLE_CLIENT_IDS 와 같은 값)</label>
+  <input id="clientId" placeholder="xxxx.apps.googleusercontent.com">
+  <label for="apiBase">백엔드 주소</label>
+  <input id="apiBase" value="http://localhost:8080">
+  <button onclick="saveSettings()">저장 후 구글 버튼 다시 그리기</button>
+</fieldset>
+
+<fieldset>
+  <legend>2. 구글 로그인 → POST /api/v1/auth/google</legend>
+  <div id="googleButton"></div>
+</fieldset>
+
+<fieldset>
+  <legend>3. 토큰으로 API 호출</legend>
+  <label for="accessToken">access_token</label>
+  <input id="accessToken">
+  <label for="refreshToken">refresh_token</label>
+  <input id="refreshToken">
+  <button onclick="call('GET', '/api/v1/users/me')">GET /users/me</button>
+  <button onclick="call('GET', '/api/v1/groups')">GET /groups</button>
+  <button onclick="refresh()">POST /auth/refresh</button>
+  <button onclick="logout()">POST /auth/logout</button>
+  <button onclick="call('GET', '/api/v1/users/me', false)">토큰 없이 /users/me (401 확인)</button>
+</fieldset>
+
+<div class="status" id="status"></div>
+<pre id="output">결과가 여기에 표시됩니다.</pre>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  };
+
+  $('clientId').value = store.get('majung.clientId') || '';
+  $('apiBase').value = store.get('majung.apiBase') || 'http://localhost:8080';
+
+  function saveSettings() {
+    store.set('majung.clientId', $('clientId').value.trim());
+    store.set('majung.apiBase', $('apiBase').value.trim());
+    initGoogle();
+  }
+
+  function initGoogle() {
+    const clientId = $('clientId').value.trim();
+    if (!window.google || !clientId) {
+      $('googleButton').textContent = '클라이언트 ID 를 입력하고 저장하면 구글 로그인 버튼이 나타납니다.';
+      return;
+    }
+    $('googleButton').innerHTML = '';
+    google.accounts.id.initialize({ client_id: clientId, callback: onGoogleLogin });
+    google.accounts.id.renderButton($('googleButton'), { theme: 'outline', size: 'large', text: 'signin_with' });
+  }
+
+  // 구글이 준 credential 이 idToken
+  async function onGoogleLogin({ credential }) {
+    const body = await request('POST', '/api/v1/auth/google', { id_token: credential }, false);
+    if (body?.data) applyTokens(body.data);
+  }
+
+  async function refresh() {
+    const body = await request('POST', '/api/v1/auth/refresh', { refresh_token: $('refreshToken').value }, false);
+    if (body?.data) applyTokens(body.data);
+  }
+
+  function logout() {
+    return request('POST', '/api/v1/auth/logout', { refresh_token: $('refreshToken').value }, true);
+  }
+
+  function call(method, path, withToken = true) {
+    return request(method, path, undefined, withToken);
+  }
+
+  function applyTokens(data) {
+    $('accessToken').value = data.access_token;
+    $('refreshToken').value = data.refresh_token;
+  }
+
+  async function request(method, path, json, withToken) {
+    const headers = {};
+    if (json !== undefined) headers['Content-Type'] = 'application/json';
+    if (withToken) headers['Authorization'] = 'Bearer ' + $('accessToken').value.trim();
+    const url = $('apiBase').value.trim().replace(/\/$/, '') + path;
+    try {
+      const res = await fetch(url, { method, headers, body: json === undefined ? undefined : JSON.stringify(json) });
+      const text = await res.text();
+      let body; try { body = JSON.parse(text); } catch { body = text; }
+      show(`${method} ${path} → ${res.status}`, res.ok, body);
+      return body;
+    } catch (e) {
+      show(`${method} ${path} → 요청 실패`, false, '서버가 꺼져 있거나 CORS 에 막혔을 수 있습니다.\n' + e);
+    }
+  }
+
+  function show(title, ok, body) {
+    $('status').textContent = title;
+    $('status').className = 'status ' + (ok ? 'ok' : 'err');
+    $('output').textContent = typeof body === 'string' ? body : JSON.stringify(body, null, 2);
+  }
+</script>
+</body>
+</html>
