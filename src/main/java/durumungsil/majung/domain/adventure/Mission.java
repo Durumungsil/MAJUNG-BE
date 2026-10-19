@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 /**
  * 현재 미션 조회 / 초이스 / 미션 완료(인증)
@@ -118,7 +119,8 @@ public class Mission {
             throw new IllegalArgumentException("시작 시각은 필수입니다.");
         }
         GeoUtils.validate(latitude, longitude);
-        this.startedAt = now;
+        // DB의 timestamp(6) 정밀도에 맞춰 최초 응답과 재조회 응답을 동일하게 유지한다.
+        this.startedAt = now.truncatedTo(ChronoUnit.MICROS);
         this.startLatitude = latitude;
         this.startLongitude = longitude;
     }
@@ -137,7 +139,7 @@ public class Mission {
         int expectedMinutes = Rank.expectedWalkingMinutes(
                 store.distanceMetersFrom(startLatitude, startLongitude));
         Rank rank = Rank.of(hintCount, Duration.between(startedAt, now), expectedMinutes);
-        this.completedAt = now;
+        this.completedAt = now.truncatedTo(ChronoUnit.MICROS);
         this.status = MissionStatus.COMPLETED;
         this.clearRank = rank;
         return clearRank;

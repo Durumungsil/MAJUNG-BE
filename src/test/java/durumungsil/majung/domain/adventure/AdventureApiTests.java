@@ -187,6 +187,18 @@ class AdventureApiTests {
     }
 
     @Test
+    void repeatedStartPreservesTimestampAtDatabasePrecision() throws Exception {
+        long mission = create(1).path("first_mission_id").asLong();
+        when(settings.nowUtc()).thenReturn(START.plusNanos(123_456_789));
+        String initial = start(mission).path("started_at").asString();
+        when(settings.nowUtc()).thenReturn(START.plusMinutes(1));
+        String repeated = start(mission).path("started_at").asString();
+        assertEquals(initial, repeated);
+        mvc.perform(get(base() + "/missions/current")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.started_at").value(initial));
+    }
+
+    @Test
     void clientCompletionTimeCannotImproveRankOrReplaceServerTimestamp() throws Exception {
         long mission = create(1).path("first_mission_id").asLong();
         start(mission);
