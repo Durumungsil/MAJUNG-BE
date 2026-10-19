@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * 자동 여행 커리큘럼 생성 / 진행도 조회.
@@ -48,7 +48,7 @@ public class AdventureProcess {
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Builder
     private AdventureProcess(Trip trip, LocalDate travelDate, AdventureStatus status,
