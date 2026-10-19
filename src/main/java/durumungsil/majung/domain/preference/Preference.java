@@ -7,7 +7,6 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -71,9 +70,13 @@ public class Preference {
     @Column(name = "budget_max")
     private Integer budgetMax;
 
-    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    private void initializeUpdatedAt() {
+        this.updatedAt = LocalDateTime.now();
+    }
 
     @Builder
     private Preference(Trip trip, User user, Set<TransportType> transportTypes, List<FoodPreference> foodPreferences,
@@ -96,6 +99,7 @@ public class Preference {
         Set<TransportType> replacement = transportTypes == null ? Set.of() : new HashSet<>(transportTypes);
         this.transportTypes.clear();
         this.transportTypes.addAll(replacement);
+        this.updatedAt = LocalDateTime.now();
     }
 
     /** 그룹 의견 수집(PUT) 시 음식 선호 목록을 통째로 교체 */
@@ -104,6 +108,7 @@ public class Preference {
                 ? List.of() : copyValidFoodPreferences(foodPreferences);
         this.foodPreferences.clear();
         this.foodPreferences.addAll(replacement);
+        this.updatedAt = LocalDateTime.now();
     }
 
     /** 그룹 의견 수집(PUT) - 취향 전체를 통째로 교체 */

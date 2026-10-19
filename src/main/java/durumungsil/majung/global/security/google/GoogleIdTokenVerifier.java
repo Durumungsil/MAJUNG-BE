@@ -43,6 +43,8 @@ public class GoogleIdTokenVerifier {
         NimbusJwtDecoder nimbusDecoder = NimbusJwtDecoder.withJwkSetUri(GOOGLE_JWK_SET_URI).build();
         nimbusDecoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(List.<OAuth2TokenValidator<Jwt>>of(
                 new JwtTimestampValidator(),
+                new JwtClaimValidator<java.time.Instant>(JwtClaimNames.EXP, value -> value != null),
+                new JwtClaimValidator<String>(JwtClaimNames.SUB, value -> value != null && !value.isBlank()),
                 new JwtClaimValidator<Object>(JwtClaimNames.ISS,
                         iss -> iss != null && GOOGLE_ISSUERS.contains(iss.toString())),
                 new JwtClaimValidator<Collection<String>>(JwtClaimNames.AUD,

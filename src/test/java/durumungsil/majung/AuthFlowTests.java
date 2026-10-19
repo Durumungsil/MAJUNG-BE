@@ -164,6 +164,23 @@ class AuthFlowTests {
                 .andReturn().getResponse().getContentAsString();
     }
 
+    @Test
+    void 다른_그룹의_모험_API는_인증된_사용자도_호출할_수_없다() throws Exception {
+        given(googleIdTokenVerifier.verify("outsider-token"))
+                .willReturn(new GoogleUserInfo("outsider-sub", "outsider@gmail.com", "외부인"));
+        String token = JsonPath.read(login("outsider-token"), "$.data.access_token");
+        for (String path : new String[]{"/adventure/process/1", "/missions/current", "/missions/1/hint"}) {
+            mockMvc.perform(get("/api/v1/groups/999999" + path).header("Authorization", "Bearer " + token))
+                    .andExpect(status().isForbidden());
+            mockMvc.perform(get("/api/v1/groups/999999" + path)).andExpect(status().isUnauthorized());
+        }
+        for (String path : new String[]{"/adventure/process", "/missions/1/start", "/missions/1/complete"}) {
+            mockMvc.perform(post("/api/v1/groups/999999" + path).header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                    .andExpect(status().isForbidden());
+        }
+    }
+
     private org.springframework.test.web.servlet.ResultActions refresh(String refreshToken) throws Exception {
         return mockMvc.perform(post("/api/v1/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)

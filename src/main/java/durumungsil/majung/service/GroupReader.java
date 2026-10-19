@@ -51,6 +51,13 @@ public class GroupReader {
                 .orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND));
     }
 
+    /** 그룹 변경과 멤버 권한 검사를 같은 잠금 안에서 처리한다. */
+    public Group getMemberGroupForUpdate(Long groupId, Long userId) {
+        Group group = getGroupForUpdate(groupId);
+        validateMember(groupId, userId);
+        return group;
+    }
+
     public void validateMember(Long groupId, Long userId) {
         if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, userId)) {
             throw new BusinessException(ErrorCode.GROUP_NOT_FOUND);

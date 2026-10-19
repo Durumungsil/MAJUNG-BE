@@ -29,7 +29,7 @@ public class GroupInvitationService {
     /** 초대 코드 조회 (방장만). 만료됐으면 새 코드로 재발급해서 내려준다 */
     @Transactional
     public InviteCodeResponse getInviteCode(Long userId, Long groupId) {
-        Group group = groupReader.getMemberGroup(groupId, userId);
+        Group group = groupReader.getMemberGroupForUpdate(groupId, userId);
         groupReader.validateOwner(group, userId, ErrorCode.NOT_OWNER_VIEW_INVITE_CODE);
         group.reissueInviteCodeIfExpired(inviteCodeGenerator::generateUnique, LocalDateTime.now());
         return InviteCodeResponse.from(group);

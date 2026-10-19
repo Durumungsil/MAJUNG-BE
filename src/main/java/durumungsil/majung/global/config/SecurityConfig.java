@@ -10,6 +10,10 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import jakarta.servlet.DispatcherType;
+import durumungsil.majung.global.security.AuthUser;
+import durumungsil.majung.repository.GroupMemberRepository;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -37,6 +41,7 @@ public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final SecurityErrorHandler securityErrorHandler;
+    private final GroupMemberRepository groupMembers;
 
     /** 프론트 주소 (브라우저에서 다른 포트/도메인으로 API 를 부르려면 CORS 허용 필요) */
     @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:5173}")
@@ -53,7 +58,18 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, PUBLIC_POST_URLS).permitAll()
-                        .requestMatchers("/error").permitAll()
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers("/api/v1/groups/{groupId}/adventure/**", "/api/v1/groups/{groupId}/missions/**")
+                        .access((authentication, context) -> {
+                            Object principal = authentication.get().getPrincipal();
+                            if (!(principal instanceof AuthUser user)) return new AuthorizationDecision(false);
+                            try {
+                                Long groupId = Long.valueOf(context.getVariables().get("groupId"));
+                                return new AuthorizationDecision(groupMembers.existsByGroupIdAndUserId(groupId, user.id()));
+                            } catch (NumberFormatException exception) {
+                                return new AuthorizationDecision(false);
+                            }
+                        })
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt

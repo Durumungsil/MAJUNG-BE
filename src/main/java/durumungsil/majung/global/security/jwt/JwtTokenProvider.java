@@ -55,9 +55,19 @@ public class JwtTokenProvider {
                 .build();
         nimbusDecoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(List.<OAuth2TokenValidator<Jwt>>of(
                 new JwtTimestampValidator(),
+                new JwtClaimValidator<Instant>(JwtClaimNames.EXP, value -> value != null),
+                new JwtClaimValidator<String>(JwtClaimNames.SUB, JwtTokenProvider::validUserId),
                 new JwtClaimValidator<Object>(JwtClaimNames.ISS, iss -> iss != null && ISSUER.equals(iss.toString()))
         )));
         this.decoder = nimbusDecoder;
+    }
+
+    private static boolean validUserId(String subject) {
+        try {
+            return subject != null && Long.parseLong(subject) > 0;
+        } catch (NumberFormatException exception) {
+            return false;
+        }
     }
 
     public String createAccessToken(Long userId) {

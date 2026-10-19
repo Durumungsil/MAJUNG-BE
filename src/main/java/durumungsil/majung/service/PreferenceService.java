@@ -37,7 +37,7 @@ public class PreferenceService {
     /** 그룹 의견 수집 - 진행 중인 여행 회차에 내 취향을 저장(없으면 생성, 있으면 통째로 교체) */
     @Transactional
     public SavePreferenceResponse savePreference(Long userId, Long groupId, SavePreferenceRequest request) {
-        groupReader.getMemberGroup(groupId, userId);
+        groupReader.getMemberGroupForUpdate(groupId, userId);
         Trip trip = groupReader.getActiveTrip(groupId);
 
         Set<TransportType> transportTypes = parseEnums(request.transportTypes(), TransportType.class);

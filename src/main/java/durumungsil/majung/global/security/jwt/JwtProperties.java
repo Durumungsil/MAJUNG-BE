@@ -19,7 +19,8 @@ public record JwtProperties(String secret, Duration accessTokenValidity, Duratio
         if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
             throw new IllegalArgumentException("jwt.secret 은 32바이트 이상이어야 합니다. (HS256)");
         }
-        if (accessTokenValidity == null || refreshTokenValidity == null) {
+        if (accessTokenValidity == null || refreshTokenValidity == null
+                || accessTokenValidity.toSeconds() <= 0 || refreshTokenValidity.toSeconds() <= 0) {
             throw new IllegalArgumentException("jwt.access-token-validity / jwt.refresh-token-validity 를 설정해야 합니다.");
         }
     }
