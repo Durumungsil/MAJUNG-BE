@@ -28,7 +28,7 @@ public class TripService {
     /** 모드 선택 (방장만) - 진행 중인 여행 회차에 저장 */
     @Transactional
     public SelectModeResponse selectMode(Long userId, Long groupId, String modeValue) {
-        Group group = groupReader.getMemberGroup(groupId, userId);
+        Group group = groupReader.getMemberGroupForUpdate(groupId, userId);
         groupReader.validateOwner(group, userId, ErrorCode.NOT_OWNER_SELECT_MODE);
         TripMode mode = parseMode(modeValue);
 

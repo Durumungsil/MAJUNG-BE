@@ -105,7 +105,7 @@ public class GroupService {
     /** 그룹 설정 수정 (방장만). 보낸 필드만 반영한다 */
     @Transactional
     public UpdateGroupResponse updateGroup(Long userId, Long groupId, UpdateGroupRequest request) {
-        Group group = groupReader.getMemberGroup(groupId, userId);
+        Group group = groupReader.getMemberGroupForUpdate(groupId, userId);
         groupReader.validateOwner(group, userId, ErrorCode.NOT_OWNER_UPDATE_SETTING);
 
         if (request.groupName() != null) {

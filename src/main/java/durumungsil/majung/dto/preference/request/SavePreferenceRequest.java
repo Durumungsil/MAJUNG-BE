@@ -14,7 +14,7 @@ import java.util.List;
  */
 public record SavePreferenceRequest(
         @NotEmpty(message = MESSAGE) List<String> transportTypes,
-        @NotNull(message = MESSAGE) List<@Valid FoodPreferenceItem> foodPreferences,
+        @NotNull(message = MESSAGE) List<@NotNull(message = MESSAGE) @Valid FoodPreferenceItem> foodPreferences,
         @NotNull(message = MESSAGE) List<String> allergies,
         @NotEmpty(message = MESSAGE) List<String> travelCategories,
         @NotNull(message = MESSAGE) @Valid Budget budget
