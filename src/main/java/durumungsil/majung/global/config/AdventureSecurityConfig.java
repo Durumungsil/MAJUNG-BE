@@ -9,6 +9,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
+@org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass("durumungsil.majung.global.config.SecurityConfig")
 public class AdventureSecurityConfig {
     /** 인증 없는 모험 API 호출은 local에서만 허용하며, 사용자 인증은 별도 작업에서 연결한다. */
     @Bean

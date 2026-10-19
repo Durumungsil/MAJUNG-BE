@@ -22,6 +22,7 @@ import static durumungsil.majung.domain.adventure.AdventureDtos.*;
 @RequiredArgsConstructor
 @Transactional
 public class AdventureService {
+    private final jakarta.persistence.EntityManager entityManager;
     private final TripRepository trips;
     private final AdventureProcessRepository processes;
     private final MissionRepository missions;
@@ -119,7 +120,11 @@ public class AdventureService {
     }
 
     private Trip activeTrip(Long groupId) {
-        // 여행 행을 먼저 잠가 생성 중복, 힌트 횟수 유실, 동시 완료를 같은 순서로 직렬화한다.
+        // 멤버·취향·여행 설정 변경과도 같은 그룹 → 여행 순서로 잠근다.
+        if (entityManager.find(durumungsil.majung.domain.group.Group.class, groupId,
+                jakarta.persistence.LockModeType.PESSIMISTIC_WRITE) == null) {
+            throw ApiException.notFound("그룹을 찾을 수 없습니다.");
+        }
         List<Trip> active = trips.findActiveForUpdate(groupId);
         if (active.isEmpty()) { throw ApiException.notFound("진행 중인 여행 회차를 찾을 수 없습니다."); }
         if (active.size() > 1) { throw ApiException.conflict("진행 중인 여행 회차가 여러 개입니다."); }

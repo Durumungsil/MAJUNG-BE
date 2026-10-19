@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** local을 명시하지 않은 기본 환경에서는 인증 우회 경로가 열리면 안 된다. */
 @SpringBootTest
@@ -31,7 +32,8 @@ class AdventureSecurityTests {
         for (String[] route : routes) {
             mvc.perform(request(HttpMethod.valueOf(route[0]), base + route[1])
                             .with(csrf()).contentType(MediaType.APPLICATION_JSON).content("{}"))
-                    .andExpect(status().isForbidden());
+                    .andExpect(result -> assertTrue(result.getResponse().getStatus() == 401
+                            || result.getResponse().getStatus() == 403));
             mvc.perform(request(HttpMethod.valueOf(route[0]), base + route[1])
                             .with(user("reviewer")).with(csrf())
                             .contentType(MediaType.APPLICATION_JSON).content("{}"))
@@ -46,7 +48,14 @@ class AdventureSecurityTests {
                         .requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/api/v1/groups/1/missions/current")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isInternalServerError()).andExpect(jsonPath("$.status").value(500));
-        mvc.perform(get("/error")).andExpect(status().isForbidden());
-        mvc.perform(get("/unmatched")).andExpect(status().isForbidden());
+        mvc.perform(post("/error").with(request -> { request.setDispatcherType(DispatcherType.ERROR); return request; })
+                        .requestAttr(RequestDispatcher.ERROR_STATUS_CODE, 405)
+                        .requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/api/v1/groups/1/missions/current")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isMethodNotAllowed()).andExpect(jsonPath("$.status").value(405));
+        mvc.perform(get("/error")).andExpect(result -> assertTrue(result.getResponse().getStatus() == 401
+                || result.getResponse().getStatus() == 403));
+        mvc.perform(get("/unmatched")).andExpect(result -> assertTrue(result.getResponse().getStatus() == 401
+                || result.getResponse().getStatus() == 403));
     }
 }

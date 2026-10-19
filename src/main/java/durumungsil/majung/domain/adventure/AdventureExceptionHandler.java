@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+@org.springframework.core.annotation.Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice(basePackageClasses = AdventureController.class)
 public class AdventureExceptionHandler {
     public record ErrorResponse(boolean success, @JsonProperty("error_code") String errorCode, String message) { }

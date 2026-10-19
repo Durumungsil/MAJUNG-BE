@@ -4,6 +4,7 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.*;
 import java.util.List;
 
+@org.springframework.stereotype.Repository("adventureTripRepository")
 public interface TripRepository extends JpaRepository<Trip, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from Trip t where t.group.id = :groupId and t.status <> durumungsil.majung.domain.trip.TripStatus.COMPLETED order by t.id desc")

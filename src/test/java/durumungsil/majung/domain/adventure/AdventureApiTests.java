@@ -19,8 +19,6 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.RequestDispatcher;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -37,9 +35,10 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+@SpringBootTest(properties = "spring.jackson.property-naming-strategy=SNAKE_CASE")
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("local")
+// 인증 필터는 별도 보안 테스트와 OAuth 통합 테스트에서 검증한다.
 class AdventureApiTests {
     private static final LocalDate DATE = LocalDate.of(2026, 10, 19);
     private static final LocalDateTime START = DATE.atTime(1, 0);
@@ -162,9 +161,9 @@ class AdventureApiTests {
         mvc.perform(get(base() + "/adventure/process/not-a-number")).andExpect(status().isBadRequest());
         // 열외 엔드포인트에는 공개 보안 설정과 컨트롤러를 만들지 않는다.
         mvc.perform(patch(base() + "/missions/" + mission + "/route-choice").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"route_type\":\"FUN\"}")).andExpect(status().isForbidden());
+                .content("{\"route_type\":\"FUN\"}")).andExpect(status().isNotFound());
         mvc.perform(post(base() + "/missions/" + mission + "/verify").contentType(MediaType.APPLICATION_JSON)
-                .content(position())).andExpect(status().isForbidden());
+                .content(position())).andExpect(status().isNotFound());
     }
 
     @Test
@@ -244,22 +243,6 @@ class AdventureApiTests {
             List<Future<Integer>> results = pool.invokeAll(completions);
             assertEquals(List.of(200, 409), List.of(results.get(0).get(), results.get(1).get()).stream().sorted().toList());
         }
-    }
-
-    @Test
-    void errorDispatchPreservesStatusInsteadOfBecomingForbidden() throws Exception {
-        mvc.perform(get("/error").with(request -> { request.setDispatcherType(DispatcherType.ERROR); return request; })
-                        .requestAttr(RequestDispatcher.ERROR_STATUS_CODE, 405)
-                        .requestAttr(RequestDispatcher.ERROR_REQUEST_URI, base() + "/missions/current")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isMethodNotAllowed()).andExpect(jsonPath("$.status").value(405));
-        mvc.perform(post("/error").with(request -> { request.setDispatcherType(DispatcherType.ERROR); return request; })
-                        .requestAttr(RequestDispatcher.ERROR_STATUS_CODE, 500)
-                        .requestAttr(RequestDispatcher.ERROR_REQUEST_URI, base() + "/adventure/process")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isInternalServerError()).andExpect(jsonPath("$.status").value(500));
-        mvc.perform(get("/error")).andExpect(status().isForbidden());
-        mvc.perform(get("/unmatched")).andExpect(status().isForbidden());
     }
 
     private int completeStatus(long mission) {

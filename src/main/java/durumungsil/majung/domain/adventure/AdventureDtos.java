@@ -22,8 +22,8 @@ public final class AdventureDtos {
                           @JsonProperty("created_at") Instant createdAt) { }
     public record Progress(int completed, int total) { }
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record MissionProgress(Long missionId, @JsonProperty("order") int order,
-                                  MissionStatus status, Instant completedAt) { }
+    public record MissionProgress(@JsonProperty("missionId") Long missionId, @JsonProperty("order") int order,
+                                  MissionStatus status, @JsonProperty("completedAt") Instant completedAt) { }
     public record ProcessView(@JsonProperty("process_id") Long processId, AdventureStatus status,
                               Progress progress, @JsonProperty("current_missionId") Long currentMissionId,
                               List<MissionProgress> missions) { }

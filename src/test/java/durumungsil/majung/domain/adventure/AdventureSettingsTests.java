@@ -10,6 +10,27 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class AdventureSettingsTests {
     @Test
+    void environmentAliasesRemainAvailableWithoutEditingSharedApplicationProperties() {
+        new org.springframework.boot.test.context.runner.ApplicationContextRunner()
+                .withUserConfiguration(AdventureSettings.class)
+                .withPropertyValues("HINT_VIEW_SECONDS=45", "MISSION_ARRIVAL_RADIUS_METERS=80", "MAX_MISSION_COUNT=8")
+                .run(context -> {
+                    AdventureSettings settings = context.getBean(AdventureSettings.class);
+                    assertEquals(45, settings.hintViewSeconds());
+                    assertEquals(80.0, settings.arrivalRadiusMeters());
+                    assertEquals(8, settings.maxMissionCount());
+                });
+    }
+
+    @Test
+    void explicitPolicyPropertiesTakePrecedenceOverAliases() {
+        new org.springframework.boot.test.context.runner.ApplicationContextRunner()
+                .withUserConfiguration(AdventureSettings.class)
+                .withPropertyValues("HINT_VIEW_SECONDS=45", "adventure.hint-view-seconds=60")
+                .run(context -> assertEquals(60, context.getBean(AdventureSettings.class).hintViewSeconds()));
+    }
+
+    @Test
     void usesKoreanDateAndUtcMissionTimestampsAcrossMidnight() {
         AdventureSettings settings = new AdventureSettings(30, 100, 20,
                 Clock.fixed(Instant.parse("2026-10-19T15:01:00Z"), ZoneOffset.UTC));

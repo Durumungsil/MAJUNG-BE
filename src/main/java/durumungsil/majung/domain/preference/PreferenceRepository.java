@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 
+@org.springframework.stereotype.Repository("adventurePreferenceRepository")
 public interface PreferenceRepository extends JpaRepository<Preference, Long> {
     @Query("select p from Preference p where p.trip.id = :tripId and p.user.id in "
             + "(select m.user.id from GroupMember m where m.group.id = :groupId)")
