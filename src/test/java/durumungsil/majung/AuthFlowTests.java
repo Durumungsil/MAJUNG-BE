@@ -165,6 +165,17 @@ class AuthFlowTests {
     }
 
     @Test
+    void 존재하지_않는_경로와_잘못된_메서드는_원래_오류_상태를_유지한다() throws Exception {
+        given(googleIdTokenVerifier.verify("routing-token"))
+                .willReturn(new GoogleUserInfo("routing-sub", "routing@gmail.com", "테스터"));
+        String token = JsonPath.read(login("routing-token"), "$.data.access_token");
+        mockMvc.perform(get("/api/v1/missing").header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.error_code").value("404"));
+        mockMvc.perform(post("/api/v1/users/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isMethodNotAllowed()).andExpect(jsonPath("$.error_code").value("405"));
+    }
+
+    @Test
     void 다른_그룹의_모험_API는_인증된_사용자도_호출할_수_없다() throws Exception {
         given(googleIdTokenVerifier.verify("outsider-token"))
                 .willReturn(new GoogleUserInfo("outsider-sub", "outsider@gmail.com", "외부인"));

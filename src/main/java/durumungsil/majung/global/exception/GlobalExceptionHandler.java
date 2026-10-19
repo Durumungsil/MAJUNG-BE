@@ -58,6 +58,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception e) {
+        // Spring MVC의 404/405 등은 서버 장애로 바꾸지 않고 원래 상태를 보존한다.
+        if (e instanceof org.springframework.web.ErrorResponse error) {
+            HttpStatus status = HttpStatus.valueOf(error.getStatusCode().value());
+            return toResponse(status, status.getReasonPhrase());
+        }
         log.error("Unhandled exception", e);
         return toResponse(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_SERVER_ERROR.getMessage());
     }
