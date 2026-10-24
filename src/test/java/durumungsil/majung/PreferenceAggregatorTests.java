@@ -1,14 +1,14 @@
 package durumungsil.majung;
 
-import durumungsil.majung.domain.group.Group;
-import durumungsil.majung.domain.preference.Allergy;
-import durumungsil.majung.domain.preference.FoodPreference;
-import durumungsil.majung.domain.preference.Preference;
-import durumungsil.majung.domain.preference.TransportType;
-import durumungsil.majung.domain.preference.TravelCategory;
-import durumungsil.majung.dto.preference.response.PreferenceSummaryResponse;
+import durumungsil.majung.domain.group.entity.Group;
+import durumungsil.majung.domain.preference.entity.Allergy;
+import durumungsil.majung.domain.preference.entity.FoodPreference;
+import durumungsil.majung.domain.preference.entity.Preference;
+import durumungsil.majung.domain.preference.entity.TransportType;
+import durumungsil.majung.domain.preference.entity.TravelCategory;
+import durumungsil.majung.domain.preference.dto.response.PreferenceSummaryResponse;
 import durumungsil.majung.global.util.EnumJsonArrays;
-import durumungsil.majung.service.PreferenceAggregator;
+import durumungsil.majung.domain.preference.service.PreferenceAggregator;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

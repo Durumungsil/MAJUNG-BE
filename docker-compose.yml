@@ -1,0 +1,19 @@
+# 로컬에서 API 서버를 도커로 띄운다 (JDK 설치 불필요)
+#   1) .env.example 을 .env 로 복사하고 값을 채운다 (값은 팀 비공개 채널로 받기)
+#   2) docker compose up --build
+#   3) http://localhost:8080 으로 호출 (API_PORT 를 바꾸면 그 포트)
+services:
+  api:
+    build:
+      context: .
+      args:
+        # build.gradle 의 Java toolchain 버전과 같아야 한다
+        JAVA_VERSION: ${JAVA_VERSION:-21}
+    image: majung-api:local
+    env_file: .env
+    environment:
+      PORT: "8080"
+    ports:
+      # 프론트가 8080 을 쓰면 .env 에 API_PORT=8081 처럼 바꾼다
+      - "${API_PORT:-8080}:8080"
+    restart: unless-stopped

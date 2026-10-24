@@ -1,10 +1,12 @@
 package durumungsil.majung;
 
-import durumungsil.majung.domain.group.*;
-import durumungsil.majung.domain.preference.Preference;
-import durumungsil.majung.domain.store.*;
-import durumungsil.majung.domain.trip.*;
-import durumungsil.majung.domain.user.User;
+import durumungsil.majung.domain.group.entity.*;
+import durumungsil.majung.domain.preference.entity.Preference;
+import durumungsil.majung.domain.store.entity.*;
+import durumungsil.majung.domain.store.repository.*;
+import durumungsil.majung.domain.trip.entity.*;
+import durumungsil.majung.domain.trip.repository.*;
+import durumungsil.majung.domain.user.entity.User;
 import durumungsil.majung.global.security.jwt.JwtTokenProvider;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
@@ -38,7 +40,7 @@ class AdventureAuthIntegrationTests {
 
     static boolean adventureAvailable() {
         return AdventureAuthIntegrationTests.class.getClassLoader()
-                .getResource("durumungsil/majung/domain/adventure/AdventureController.class") != null;
+                .getResource("durumungsil/majung/domain/adventure/controller/AdventureController.class") != null;
     }
 
     @Test
@@ -74,7 +76,7 @@ class AdventureAuthIntegrationTests {
         long process = mapper.readTree(created).path("data").path("process_id").asLong();
         long mission = mapper.readTree(created).path("data").path("first_mission_id").asLong();
         mvc.perform(get(base + "/adventure/process/" + process).header("Authorization", ownerToken))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.missions[0].missionId").value(mission));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.missions[0].mission_id").value(mission));
         String missionPath = base + "/missions/" + mission;
         mvc.perform(post(missionPath + "/complete").header("Authorization", ownerToken)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"latitude\":35,\"longitude\":129}"))
@@ -88,6 +90,6 @@ class AdventureAuthIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"latitude\":35,\"longitude\":129}"))
                 .andExpect(status().isOk());
         mvc.perform(get(base + "/adventure/process/" + process).header("Authorization", ownerToken))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.missions[0].completedAt").exists());
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.missions[0].completed_at").exists());
     }
 }

@@ -1,14 +1,14 @@
 package durumungsil.majung;
 
-import durumungsil.majung.domain.adventure.Mission;
-import durumungsil.majung.domain.adventure.MissionStatus;
-import durumungsil.majung.domain.itinerary.Itinerary;
-import durumungsil.majung.domain.preference.FoodPreference;
-import durumungsil.majung.domain.preference.Preference;
-import durumungsil.majung.domain.preference.TransportType;
-import durumungsil.majung.domain.store.OpeningHour;
-import durumungsil.majung.domain.store.Store;
-import durumungsil.majung.domain.trip.Trip;
+import durumungsil.majung.domain.adventure.entity.Mission;
+import durumungsil.majung.domain.adventure.entity.MissionStatus;
+import durumungsil.majung.domain.story.entity.Itinerary;
+import durumungsil.majung.domain.preference.entity.FoodPreference;
+import durumungsil.majung.domain.preference.entity.Preference;
+import durumungsil.majung.domain.preference.entity.TransportType;
+import durumungsil.majung.domain.store.entity.OpeningHour;
+import durumungsil.majung.domain.store.entity.Store;
+import durumungsil.majung.domain.trip.entity.Trip;
 import durumungsil.majung.global.util.GeoUtils;
 import org.junit.jupiter.api.Test;
 

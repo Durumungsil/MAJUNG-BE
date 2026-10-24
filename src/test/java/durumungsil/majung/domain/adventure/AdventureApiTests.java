@@ -1,14 +1,17 @@
 package durumungsil.majung.domain.adventure;
 
-import durumungsil.majung.domain.group.Group;
-import durumungsil.majung.domain.group.GroupMember;
-import durumungsil.majung.domain.preference.Preference;
-import durumungsil.majung.domain.store.Store;
-import durumungsil.majung.domain.store.Type;
-import durumungsil.majung.domain.trip.Trip;
-import durumungsil.majung.domain.trip.TripMode;
-import durumungsil.majung.domain.user.User;
-import durumungsil.majung.global.api.ApiException;
+import durumungsil.majung.domain.adventure.dto.AdventureDtos;
+import durumungsil.majung.domain.adventure.service.AdventureService;
+import durumungsil.majung.domain.adventure.service.AdventureSettings;
+import durumungsil.majung.domain.group.entity.Group;
+import durumungsil.majung.domain.group.entity.GroupMember;
+import durumungsil.majung.domain.preference.entity.Preference;
+import durumungsil.majung.domain.store.entity.Store;
+import durumungsil.majung.domain.store.entity.Type;
+import durumungsil.majung.domain.trip.entity.Trip;
+import durumungsil.majung.domain.trip.entity.TripMode;
+import durumungsil.majung.domain.user.entity.User;
+import durumungsil.majung.global.exception.BusinessException;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,7 +56,8 @@ class AdventureApiTests {
 
     @BeforeEach
     void setup() {
-        for (String table : List.of("missions", "adventure_processes", "preference_foods", "preference_transport_types",
+        for (String table : List.of("itinerary_items", "itineraries", "destination_selections",
+                "missions", "adventure_processes", "preference_foods", "preference_transport_types",
                 "preferences", "trip_constraints", "group_members", "trips", "groups", "users",
                 "store_opening_hours", "store_amenities", "stores")) {
             jdbc.update("delete from " + table);
@@ -85,7 +89,7 @@ class AdventureApiTests {
         }
         JsonNode initial = data(mvc.perform(get(base() + "/adventure/process/" + processId))
                 .andExpect(status().isOk()).andReturn());
-        long second = initial.path("missions").get(1).path("missionId").asLong();
+        long second = initial.path("missions").get(1).path("mission_id").asLong();
         assertEquals("LOCKED", initial.path("missions").get(1).path("status").asString());
         mvc.perform(post(base() + "/missions/" + second + "/start").contentType(MediaType.APPLICATION_JSON)
                 .content(position())).andExpect(status().isConflict());
@@ -115,22 +119,22 @@ class AdventureApiTests {
                 .content("{\"latitude\":35,\"longitude\":129,\"completed_at\":\"2099-01-01T00:00:00Z\"}"))
                 .andExpect(status().isBadRequest());
         JsonNode completed = complete(first);
-        assertEquals(second, completed.path("next_missionId").asLong());
+        assertEquals(second, completed.path("next_mission_id").asLong());
         assertEquals("A", jdbc.queryForObject("select clear_rank from missions where id = ?", String.class, first));
         assertEquals(35.0, jdbc.queryForObject("select start_latitude from missions where id = ?", Double.class, first));
         mvc.perform(get(base() + "/adventure/process/" + processId)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("IN_PROGRESS"))
                 .andExpect(jsonPath("$.data.progress.completed").value(1))
-                .andExpect(jsonPath("$.data.current_missionId").value(second));
+                .andExpect(jsonPath("$.data.current_mission_id").value(second));
         for (int i = 1; i < 3; i++) {
-            long mission = initial.path("missions").get(i).path("missionId").asLong();
+            long mission = initial.path("missions").get(i).path("mission_id").asLong();
             start(mission);
             complete(mission);
         }
         mvc.perform(get(base() + "/adventure/process/" + processId)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.data.progress.completed").value(3))
-                .andExpect(jsonPath("$.data.current_missionId").value(org.hamcrest.Matchers.nullValue()));
+                .andExpect(jsonPath("$.data.current_mission_id").value(org.hamcrest.Matchers.nullValue()));
         mvc.perform(get(base() + "/missions/current")).andExpect(status().isNotFound());
         mvc.perform(post(base() + "/missions/" + first + "/complete").contentType(MediaType.APPLICATION_JSON)
                 .content(position())).andExpect(status().isConflict());
@@ -224,7 +228,7 @@ class AdventureApiTests {
                 try {
                     service.create(groupId, new AdventureDtos.CreateRequest(DATE, 1));
                     return 201;
-                } catch (ApiException ex) { return ex.getStatus().value(); }
+                } catch (BusinessException ex) { return ex.getErrorCode().getStatus().value(); }
             };
             Future<Integer> first = pool.submit(create);
             Future<Integer> second = pool.submit(create);
@@ -249,7 +253,7 @@ class AdventureApiTests {
         try {
             service.complete(groupId, mission, new AdventureDtos.CompleteRequest(35.0, 129.0, null));
             return 200;
-        } catch (ApiException ex) { return ex.getStatus().value(); }
+        } catch (BusinessException ex) { return ex.getErrorCode().getStatus().value(); }
     }
 
     private long seedGroup() {
