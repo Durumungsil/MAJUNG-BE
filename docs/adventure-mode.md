@@ -6,7 +6,7 @@
 
 ## API
 
-모든 경로 앞에 `/api/v1/groups/{groupId}`가 붙는다. 성공 응답은 `{success, message, data}`, 오류 응답은 `{success:false, error_code, message}`다. 명세의 오류 키 `errorCode`/`error_code` 혼용은 `error_code`로 통일했다. 성공 응답의 `mission_id`, `missionId`, `current_missionId`, `next_missionId`는 명세에 나온 키를 유지한다.
+모든 경로 앞에 `/api/v1/groups/{groupId}`가 붙는다. 성공 응답은 `{success, message, data}`, 오류 응답은 `{success:false, error_code, message}`다. 요청·응답 JSON 키는 다른 API와 같이 모두 snake_case다(`mission_id`, `completed_at`, `current_mission_id`, `next_mission_id` 등).
 
 | 메서드 | 경로 | 입력 | 결과 |
 | --- | --- | --- | --- |
@@ -40,6 +40,7 @@
 - 멤버별 예산 중 최솟값을 `여행 일수 × 하루 3끼`로 나눠 음식 장소의 1인 가격을 제한한다. 기존 Store 정책대로 가격 미상 장소는 예산으로 제외하지 않는다.
 - 현재 취향의 알레르기와 저장된 TripConstraint의 알레르기를 합친다. 장소별 원재료 데이터가 없으므로 알레르기가 하나라도 있으면 음식 장소 전체를 제외한다. 원재료별 정밀 판정은 추가 데이터가 필요하다.
 - TripConstraint의 `excluded_categories`는 Store.Type의 enum 이름·코드·한글 표시명으로 판별한다. `EXTREME_HEIGHT`처럼 현 데이터 모델로 판별할 수 없는 조건이나 잘못된 JSON은 무시하지 않고 409를 반환한다.
+- 제외 업종(알레르기가 있으면 음식 포함)은 DB 조회에서 거르고, 평점 높은 순(평점 없으면 뒤로) **최대 500곳**만 후보로 불러온다. 지역 전체를 불러오면 DB 연결이 끊겨 500 오류가 났기 때문이다.
 - 필터를 통과한 후보를 무작위로 섞고 요청한 수만큼 선택한다. 후보가 부족하면 409이며 커리큘럼·미션을 남기지 않는다.
 
 ## 설정
@@ -56,23 +57,19 @@
 
 ## 인증 연결
 
-사용자 요청에 따라 사용자 인증과 사용자별 그룹 멤버 권한 검사는 후속 작업으로 남겼다. 인증 없는 6개 API 호출은 명시적으로 `local` 프로필을 활성화한 개발 환경에서만 허용한다. 기본 환경과 `local`을 활성화하지 않은 공유·스테이징 환경에서는 요청을 차단한다. `local` 프로필을 공유·운영 환경에서 활성화하면 안 된다.
+모든 모험 API는 `Authorization: Bearer {access_token}`이 필요하다. 중앙 `SecurityConfig`가 `/api/v1/groups/{groupId}/adventure/**`, `/missions/**` 요청에 대해 로그인 사용자가 그 그룹의 멤버인지 검사하고, 아니면 403을 반환한다. 요청한 그룹과 커리큘럼/미션이 같은 현재 여행에 속하는지는 서비스에서 검사한다.
 
-```sh
-SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
-```
-
-요청한 그룹과 커리큘럼/미션이 같은 현재 여행에 속하는지는 검사한다. `AdventureSecurityConfig`는 그 외 요청도 차단하되, 컨테이너의 ERROR 디스패치를 허용해 원래 오류 상태(405·500 등)를 보존한다. 외부에서 `/error`를 직접 호출하는 요청은 허용하지 않는다. 인증 작업 시 개발용 허용 설정을 교체하고 인증 사용자와 그룹 멤버를 연결해야 한다.
+예전의 개발용 인증 우회 설정(`AdventureSecurityConfig`, `local` 프로필)은 중앙 `SecurityConfig`가 들어온 뒤로 등록되지 않는 코드여서 패키지 구조 정리 때 삭제했다.
 
 ## 검증
 
 ### 다른 기능 브랜치와의 통합
 
-중앙 `SecurityConfig`가 있으면 `AdventureSecurityConfig`는 등록하지 않고 중앙 인증 정책을 적용한다. OAuth 브랜치에서는 토큰 인증과 그룹 소속 검사를 함께 적용한다. 모험 전용 저장소에는 별도의 빈 이름을 사용해 그룹 기능의 저장소와 충돌하지 않도록 했다. 명세의 `missionId`, `completedAt` 키는 전역 snake_case 설정과 무관하게 유지한다.
+모험 API도 다른 도메인과 같은 저장소(`TripRepository`, `GroupMemberRepository`, `PreferenceRepository`)와 공통 예외(`BusinessException`/`ErrorCode`)·응답(`ApiResponse`)을 쓴다. 오류 메시지와 상태 코드는 이전과 같다. 상태 전이 오류(409)·중복 저장(409)·요청 형식 오류 메시지처럼 모험 API에만 있던 응답은 `AdventureExceptionHandler`가 유지한다.
 
 ```sh
 ./gradlew test
 ./gradlew build
 ```
 
-기본 테스트는 PostgreSQL 호환 모드의 H2를 사용한다. 상태 전이, 예산/알레르기/제외 조건, 6개 API 전체 흐름, 위치 실패 후 재시도, 시작 멱등성, 정보 비공개, 다른 그룹 리소스 접근, 날짜 경계, 랭크의 서버 시각 사용, 동시 생성·힌트·완료, 비로컬 환경의 6개 API 차단, ERROR 디스패치의 상태 보존을 검증한다. PR 검토 시 별도로 생성한 임시 PostgreSQL 15.17에서도 동일한 전체 테스트 22개와 동시성 검증을 통과했다. 운영 DB나 기존 데이터에는 접근하지 않았다.
+기본 테스트는 PostgreSQL 호환 모드의 H2를 사용한다. 상태 전이, 예산/알레르기/제외 조건, 6개 API 전체 흐름, 위치 실패 후 재시도, 시작 멱등성, 정보 비공개, 다른 그룹 리소스 접근, 날짜 경계, 랭크의 서버 시각 사용, 동시 생성·힌트·완료, 인증·그룹 권한 없는 6개 API 차단, ERROR 디스패치의 상태 보존을 검증한다. PR 검토 시 별도로 생성한 임시 PostgreSQL 15.17에서도 동일한 전체 테스트 22개와 동시성 검증을 통과했다. 운영 DB나 기존 데이터에는 접근하지 않았다.

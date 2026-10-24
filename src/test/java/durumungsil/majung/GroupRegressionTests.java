@@ -1,13 +1,19 @@
 package durumungsil.majung;
 
-import durumungsil.majung.domain.group.*;
-import durumungsil.majung.domain.preference.*;
-import durumungsil.majung.domain.trip.*;
-import durumungsil.majung.domain.user.User;
-import durumungsil.majung.dto.group.request.UpdateGroupRequest;
-import durumungsil.majung.dto.preference.request.SavePreferenceRequest;
-import durumungsil.majung.repository.GroupRepository;
-import durumungsil.majung.service.*;
+import durumungsil.majung.domain.group.entity.*;
+import durumungsil.majung.domain.preference.entity.*;
+import durumungsil.majung.domain.trip.entity.*;
+import durumungsil.majung.domain.trip.repository.*;
+import durumungsil.majung.domain.user.entity.User;
+import durumungsil.majung.domain.group.dto.request.UpdateGroupRequest;
+import durumungsil.majung.domain.preference.dto.request.SavePreferenceRequest;
+import durumungsil.majung.domain.group.repository.GroupRepository;
+import durumungsil.majung.domain.auth.service.*;
+import durumungsil.majung.domain.group.service.*;
+import durumungsil.majung.domain.preference.service.*;
+import durumungsil.majung.domain.story.service.*;
+import durumungsil.majung.domain.trip.service.*;
+import durumungsil.majung.domain.user.service.*;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

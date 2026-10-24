@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import jakarta.servlet.DispatcherType;
 import durumungsil.majung.global.security.AuthUser;
-import durumungsil.majung.repository.GroupMemberRepository;
+import durumungsil.majung.domain.group.repository.GroupMemberRepository;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;

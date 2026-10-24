@@ -6,6 +6,29 @@ Google ID 토큰을 `POST /api/v1/auth/google`에 전달해 access/refresh 토�
 
 모험모드 브랜치를 함께 적용하면 모험·미션 API에도 인증과 그룹 소속 검사를 적용합니다. `AdventureAuthIntegrationTests`는 모험 컨트롤러가 있을 때 로그인 사용자·그룹 권한·미션 시작과 완료를 함께 검증합니다.
 
+## 패키지 구조
+
+기능(도메인)별로 패키지를 나누고, 그 안을 계층별로 나눕니다. 여러 도메인이 함께 쓰는 설정·보안·예외·응답·유틸은 `global`에 둡니다.
+
+```
+durumungsil.majung
+├── domain
+│   ├── auth        구글 로그인, 토큰
+│   ├── user        내 정보
+│   ├── group       그룹, 멤버, 초대 (GroupReader: 그룹 소속·진행 중인 여행 조회)
+│   ├── trip        여행 회차, 최소 조건
+│   ├── preference  취향 입력·통합
+│   ├── store       장소 (여행지·식당)
+│   ├── story       스토리모드: 여행지 추천·선택, 타임라인
+│   ├── adventure   모험모드: 커리큘럼, 미션
+│   └── roulette    익스트림 룰렛 (엔티티만)
+│       └── {controller, service, repository, entity, dto/request, dto/response}
+└── global          config, security, exception, response, util, ai
+```
+
+- 엔티티 하나에 저장소(Repository)는 하나만 둡니다. 다른 도메인의 엔티티·저장소·서비스는 import 해서 씁니다.
+- 실패 응답은 `BusinessException(ErrorCode.XXX)`로 던지고, 성공 응답은 `ApiResponse.success(...)`로 감쌉니다.
+
 ## Commit Convention
 
 ### 형식
@@ -56,3 +79,7 @@ refactor: 상권 조회 로직 서비스 계층으로 분리
 ## 모험모드
 
 [API·동작 정책·설정·검증 방법](docs/adventure-mode.md)을 참고합니다.
+
+## 스토리모드
+
+[API·동작 정책·임시 구현 범위](docs/story-mode.md)를 참고합니다.
