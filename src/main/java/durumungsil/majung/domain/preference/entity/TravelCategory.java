@@ -1,11 +1,14 @@
 package durumungsil.majung.domain.preference.entity;
 
-/** 여행 카테고리. TODO 기획 확정 후 목록 수정 (임시) */
+/**
+ * 여행 스타일. 설문 선택지와 1:1 로 맞춘다 (선언 순서 = 설문 순서, 취향 통합 동률 정렬에도 쓴다).
+ */
 public enum TravelCategory {
-    FOOD,
-    CULTURE,
-    EXPERIENCE,
-    NATURE,
-    SHOPPING,
-    ACTIVITY
+    HEALING,    // 힐링
+    FESTIVAL,   // 축제
+    SHOPPING,   // 쇼핑
+    CULTURE,    // 문화관광
+    ACTIVITY,   // 액티비티
+    FOOD,       // 맛집 탐방
+    NATURE      // 자연친화적
 }

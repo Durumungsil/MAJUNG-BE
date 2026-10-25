@@ -48,7 +48,7 @@ public enum ErrorCode {
     NO_ACTIVE_TRIP(HttpStatus.CONFLICT, "진행 중인 여행이 없습니다."),
 
     // 취향
-    INVALID_PREFERENCE(HttpStatus.BAD_REQUEST, "알 수 없는 카테고리이거나 예산 범위가 올바르지 않습니다."),
+    INVALID_PREFERENCE(HttpStatus.BAD_REQUEST, "알 수 없는 카테고리이거나 알레르기·예산 값이 올바르지 않습니다."),
     PREFERENCE_NOT_FOUND(HttpStatus.NOT_FOUND, "아직 입력한 취향 정보가 없습니다."),
     NO_PREFERENCE_TO_SUMMARIZE(HttpStatus.CONFLICT, "취향을 입력한 멤버가 없어 통합할 수 없습니다."),
 

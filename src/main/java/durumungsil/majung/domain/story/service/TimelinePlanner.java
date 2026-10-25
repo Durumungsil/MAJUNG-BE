@@ -149,7 +149,8 @@ public class TimelinePlanner {
             Map<String, Object> place = new LinkedHashMap<>();
             place.put("stop_id", i);
             place.put("name", store.getDestinationName());
-            place.put("category", String.valueOf(DestinationCategories.of(store.getDestinationType())));
+            TravelCategory category = DestinationCategories.of(store.getDestinationType());
+            place.put("category", category == null ? "OTHER" : category.name());
             place.put("latitude", store.getLatitude());
             place.put("longitude", store.getLongitude());
             place.put("fixed_date", stop.fixedDate() == null ? null : stop.fixedDate().toString());
