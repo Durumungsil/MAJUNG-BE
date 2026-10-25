@@ -11,8 +11,8 @@ import java.util.Set;
 
 /**
  * 장소 업종(Store.Type, 상가 데이터 대분류)과 여행 카테고리(TravelCategory) 사이의 임시 매핑.
- * 상가 데이터에는 자연·관광지 분류가 없어서 NATURE, ACTIVITY 에 해당하는 장소는 아직 없다.
- * 숙박(LODGING)은 여행지 추천 대상이 아니다.
+ * 상가 데이터에는 관광지·자연·축제 분류가 없어서 HEALING, FESTIVAL, ACTIVITY, NATURE 에 해당하는 장소는 아직 없다.
+ * 숙박(LODGING)과 과학·기술(SCIENCE_TECHNOLOGY, 전문 서비스 업종)은 여행지 추천 대상이 아니다.
  * TODO 장소 데이터에 관광지 분류가 들어오면 매핑 수정
  */
 public final class DestinationCategories {
@@ -24,14 +24,14 @@ public final class DestinationCategories {
         CATEGORY_BY_TYPE.put(Type.FOOD, TravelCategory.FOOD);
         CATEGORY_BY_TYPE.put(Type.RETAIL, TravelCategory.SHOPPING);
         CATEGORY_BY_TYPE.put(Type.ART_SPORTS, TravelCategory.CULTURE);
-        CATEGORY_BY_TYPE.put(Type.SCIENCE_TECHNOLOGY, TravelCategory.EXPERIENCE);
 
-        LABELS.put(TravelCategory.FOOD, "음식");
-        LABELS.put(TravelCategory.CULTURE, "문화");
-        LABELS.put(TravelCategory.EXPERIENCE, "체험");
-        LABELS.put(TravelCategory.NATURE, "자연·산책");
+        LABELS.put(TravelCategory.HEALING, "힐링");
+        LABELS.put(TravelCategory.FESTIVAL, "축제");
         LABELS.put(TravelCategory.SHOPPING, "쇼핑");
+        LABELS.put(TravelCategory.CULTURE, "문화관광");
         LABELS.put(TravelCategory.ACTIVITY, "액티비티");
+        LABELS.put(TravelCategory.FOOD, "맛집");
+        LABELS.put(TravelCategory.NATURE, "자연친화");
     }
 
     private DestinationCategories() {

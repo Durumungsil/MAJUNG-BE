@@ -14,6 +14,7 @@ import durumungsil.majung.domain.preference.service.*;
 import durumungsil.majung.domain.story.service.*;
 import durumungsil.majung.domain.trip.service.*;
 import durumungsil.majung.domain.user.service.*;
+import durumungsil.majung.global.exception.BusinessException;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -133,6 +134,37 @@ class GroupRegressionTests {
         }
         assertEquals(2, jdbc.queryForObject("select member_count from groups where id = ?", Integer.class, data.group()));
         assertEquals(2, jdbc.queryForObject("select count(*) from group_members where group_id = ?", Integer.class, data.group()));
+    }
+
+    @Test
+    void allergiesAreFreeTextAndBudgetIsOptional() {
+        Fixture data = seed();
+        preferences.savePreference(data.owner(), data.group(), new SavePreferenceRequest(
+                List.of("BUS"), List.of(), java.util.Arrays.asList(" 땅콩 ", "새우", "땅콩", "", null, "\"굴\""),
+                List.of("HEALING", "FESTIVAL"), null));
+
+        var mine = preferences.getMyPreference(data.owner(), data.group());
+        assertEquals(List.of("땅콩", "새우", "\"굴\""), mine.allergies());
+        assertNull(mine.budget().max());
+        assertEquals(List.of(TravelCategory.HEALING, TravelCategory.FESTIVAL), mine.travelCategories());
+
+        // budget 은 보냈지만 max 가 null 이어도 예산 없음
+        preferences.savePreference(data.owner(), data.group(), new SavePreferenceRequest(
+                List.of("BUS"), List.of(), List.of(), List.of("FOOD"), new SavePreferenceRequest.Budget(null)));
+        assertNull(preferences.getMyPreference(data.owner(), data.group()).budget().max());
+    }
+
+    @Test
+    void invalidAllergyOrRemovedCategoryIsRejected() {
+        Fixture data = seed();
+        assertThrows(BusinessException.class, () -> preferences.savePreference(data.owner(), data.group(),
+                new SavePreferenceRequest(List.of("BUS"), List.of(), List.of("가".repeat(31)), List.of("FOOD"), null)));
+        assertThrows(BusinessException.class, () -> preferences.savePreference(data.owner(), data.group(),
+                new SavePreferenceRequest(List.of("BUS"), List.of(),
+                        java.util.stream.IntStream.range(0, 21).mapToObj(i -> "알레르기" + i).toList(),
+                        List.of("FOOD"), null)));
+        assertThrows(BusinessException.class, () -> preferences.savePreference(data.owner(), data.group(),
+                new SavePreferenceRequest(List.of("BUS"), List.of(), List.of(), List.of("EXPERIENCE"), null)));
     }
 
     private static SavePreferenceRequest preference(String transport) {

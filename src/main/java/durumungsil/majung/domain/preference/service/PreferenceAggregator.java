@@ -1,13 +1,13 @@
 package durumungsil.majung.domain.preference.service;
 
 import durumungsil.majung.domain.group.entity.Group;
-import durumungsil.majung.domain.preference.entity.Allergy;
 import durumungsil.majung.domain.preference.entity.FoodPreference;
 import durumungsil.majung.domain.preference.entity.Preference;
 import durumungsil.majung.domain.preference.entity.TransportType;
 import durumungsil.majung.domain.preference.entity.TravelCategory;
 import durumungsil.majung.domain.preference.dto.response.PreferenceSummaryResponse;
 import durumungsil.majung.global.util.EnumJsonArrays;
+import durumungsil.majung.global.util.StringJsonArrays;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -18,12 +18,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeSet;
 
 /**
  * 취향 통합 규칙
  * - 교통수단·여행 카테고리: 최빈값 (동률이면 모두)
  * - 음식: 음식별 평균 점수가 가장 높은 음식 (동률이면 모두)
- * - 알레르기: 합집합
+ * - 알레르기: 합집합 (자유 입력 문자열, 가나다·알파벳 순)
  * - 예산: min = 멤버 예산 중 최솟값, max = 멤버 예산의 중앙값
  */
 @Component
@@ -37,8 +38,8 @@ public class PreferenceAggregator {
                         .map(p -> EnumJsonArrays.fromJson(p.getTravelCategories(), TravelCategory.class))
                         .toList());
 
-        EnumSet<Allergy> allergies = EnumSet.noneOf(Allergy.class);
-        preferences.forEach(p -> allergies.addAll(EnumJsonArrays.fromJson(p.getAllergies(), Allergy.class)));
+        TreeSet<String> allergies = new TreeSet<>();
+        preferences.forEach(p -> allergies.addAll(StringJsonArrays.fromJson(p.getAllergies())));
 
         return new PreferenceSummaryResponse(
                 group.getId(),

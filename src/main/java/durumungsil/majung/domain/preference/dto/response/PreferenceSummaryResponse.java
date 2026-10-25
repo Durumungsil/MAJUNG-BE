@@ -1,6 +1,5 @@
 package durumungsil.majung.domain.preference.dto.response;
 
-import durumungsil.majung.domain.preference.entity.Allergy;
 import durumungsil.majung.domain.preference.entity.TransportType;
 import durumungsil.majung.domain.preference.entity.TravelCategory;
 
@@ -12,7 +11,7 @@ public record PreferenceSummaryResponse(
         List<String> foodPreferences,
         List<TravelCategory> travelCategories,
         Budget budget,
-        List<Allergy> allergies,
+        List<String> allergies,
         int completedMemberCount,
         int memberCount
 ) {

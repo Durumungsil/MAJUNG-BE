@@ -124,7 +124,7 @@ class StoryModeApiTests {
                 .andExpect(jsonPath("$.data.items[0].category").value("CULTURE"))
                 .andExpect(jsonPath("$.data.items[0].distance_meters").value(0))
                 .andExpect(jsonPath("$.data.items[0].score").value(1.0))
-                .andExpect(jsonPath("$.data.items[0].reason").value("문화 선호와 일치"))
+                .andExpect(jsonPath("$.data.items[0].reason").value("문화관광 선호와 일치"))
                 .andExpect(jsonPath("$.data.items[1].destination_id").value(data.culture()))
                 .andExpect(jsonPath("$.data.items[1].score").value(0.94))
                 .andExpect(jsonPath("$.data.next_cursor").value("2"));

@@ -1,21 +1,24 @@
 package durumungsil.majung.domain.preference.dto.response;
 
-import durumungsil.majung.domain.preference.entity.Allergy;
 import durumungsil.majung.domain.preference.entity.Preference;
 import durumungsil.majung.domain.preference.entity.TransportType;
 import durumungsil.majung.domain.preference.entity.TravelCategory;
 import durumungsil.majung.global.util.EnumJsonArrays;
+import durumungsil.majung.global.util.StringJsonArrays;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
-/** loaded_from_previous - 현재 회차에 입력이 없어 이전 회차 취향을 불러왔으면 true */
+/**
+ * loaded_from_previous - 현재 회차에 입력이 없어 이전 회차 취향을 불러왔으면 true.
+ * budget.max 는 예산을 입력하지 않았으면 null.
+ */
 public record MyPreferenceResponse(
         Long userId,
         List<TransportType> transportTypes,
         List<FoodPreferenceItem> foodPreferences,
-        List<Allergy> allergies,
+        List<String> allergies,
         List<TravelCategory> travelCategories,
         Budget budget,
         boolean loadedFromPrevious,
@@ -28,7 +31,7 @@ public record MyPreferenceResponse(
                 preference.getFoodPreferences().stream()
                         .map(food -> new FoodPreferenceItem(food.getFood(), food.getScore()))
                         .toList(),
-                EnumJsonArrays.fromJson(preference.getAllergies(), Allergy.class),
+                StringJsonArrays.fromJson(preference.getAllergies()),
                 EnumJsonArrays.fromJson(preference.getTravelCategories(), TravelCategory.class),
                 new Budget(preference.getBudgetMax()),
                 loadedFromPrevious,

@@ -2,7 +2,6 @@ package durumungsil.majung.domain.preference.service;
 
 import durumungsil.majung.domain.group.service.GroupReader;
 import durumungsil.majung.domain.group.entity.Group;
-import durumungsil.majung.domain.preference.entity.Allergy;
 import durumungsil.majung.domain.preference.entity.FoodPreference;
 import durumungsil.majung.domain.preference.entity.Preference;
 import durumungsil.majung.domain.preference.entity.TransportType;
@@ -16,6 +15,7 @@ import durumungsil.majung.domain.preference.dto.response.SavePreferenceResponse;
 import durumungsil.majung.global.exception.BusinessException;
 import durumungsil.majung.global.exception.ErrorCode;
 import durumungsil.majung.global.util.EnumJsonArrays;
+import durumungsil.majung.global.util.StringJsonArrays;
 import durumungsil.majung.domain.preference.repository.PreferenceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,6 +31,10 @@ import java.util.Set;
 @Transactional(readOnly = true)
 public class PreferenceService {
 
+    /** 알레르기 자유 입력 제한 */
+    static final int MAX_ALLERGIES = 20;
+    static final int MAX_ALLERGY_LENGTH = 30;
+
     private final GroupReader groupReader;
     private final PreferenceRepository preferenceRepository;
     private final PreferenceAggregator preferenceAggregator;
@@ -45,9 +49,9 @@ public class PreferenceService {
         List<FoodPreference> foods = request.foodPreferences().stream()
                 .map(item -> new FoodPreference(item.food(), item.score()))
                 .toList();
-        String allergies = EnumJsonArrays.toJson(parseEnums(request.allergies(), Allergy.class));
+        String allergies = StringJsonArrays.toJson(normalizeAllergies(request.allergies()));
         String categories = EnumJsonArrays.toJson(parseEnums(request.travelCategories(), TravelCategory.class));
-        Integer budgetMax = request.budget().max();
+        Integer budgetMax = request.budget() == null ? null : request.budget().max();
 
         Preference preference = preferenceRepository.findByTripIdAndUserId(trip.getId(), userId)
                 .orElse(null);
@@ -99,6 +103,28 @@ public class PreferenceService {
             throw new BusinessException(ErrorCode.NO_PREFERENCE_TO_SUMMARIZE);
         }
         return preferenceAggregator.aggregate(group, preferences);
+    }
+
+    /**
+     * 알레르기 자유 입력 정리: 앞뒤 공백 제거, 빈 값·중복 제거(입력 순서 유지).
+     * 정리한 뒤 20개를 넘거나 한 항목이 30자를 넘으면 400.
+     */
+    static List<String> normalizeAllergies(List<String> values) {
+        Set<String> result = new LinkedHashSet<>();
+        for (String value : values) {
+            if (value == null || value.isBlank()) {
+                continue;
+            }
+            String allergy = value.strip();
+            if (allergy.length() > MAX_ALLERGY_LENGTH) {
+                throw new BusinessException(ErrorCode.INVALID_PREFERENCE);
+            }
+            result.add(allergy);
+        }
+        if (result.size() > MAX_ALLERGIES) {
+            throw new BusinessException(ErrorCode.INVALID_PREFERENCE);
+        }
+        return List.copyOf(result);
     }
 
     /** 문자열 목록을 enum 으로 변환. 모르는 값이 있으면 400, 중복은 하나로 합친다 */
