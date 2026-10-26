@@ -17,7 +17,7 @@ public class AdventureSettings {
     private final Clock clock;
 
     @org.springframework.beans.factory.annotation.Autowired
-    public AdventureSettings(@Value("${adventure.hint-view-seconds:${HINT_VIEW_SECONDS:30}}") int hintViewSeconds,
+    public AdventureSettings(@Value("${adventure.hint-view-seconds:${HINT_VIEW_SECONDS:60}}") int hintViewSeconds,
                              @Value("${adventure.arrival-radius-meters:${MISSION_ARRIVAL_RADIUS_METERS:100}}") double arrivalRadiusMeters,
                              @Value("${adventure.max-mission-count:${MAX_MISSION_COUNT:20}}") int maxMissionCount) {
         this(hintViewSeconds, arrivalRadiusMeters, maxMissionCount, Clock.systemUTC());
