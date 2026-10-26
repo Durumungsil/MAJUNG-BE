@@ -70,6 +70,11 @@ public class PreferenceService {
             preference.replace(transportTypes, foods, allergies, categories, budgetMax);
         }
 
+        if (request.excludedCategories().size() > 20 || request.excludedCategories().stream()
+                .anyMatch(code -> code == null || !code.matches("[A-Z][A-Z0-9_]{0,49}"))) {
+            throw new BusinessException(ErrorCode.INVALID_PREFERENCE);
+        }
+        preference.changeExcludedCategories(StringJsonArrays.toJson(new LinkedHashSet<>(request.excludedCategories())));
         preferenceRepository.flush(); // updated_at 반영
         return new SavePreferenceResponse(groupId, userId, true, preference.getUpdatedAt());
     }

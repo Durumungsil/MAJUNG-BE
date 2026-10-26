@@ -20,6 +20,7 @@ public record MyPreferenceResponse(
         List<FoodPreferenceItem> foodPreferences,
         List<String> allergies,
         List<TravelCategory> travelCategories,
+        List<String> excludedCategories,
         Budget budget,
         boolean loadedFromPrevious,
         LocalDateTime updatedAt
@@ -33,6 +34,7 @@ public record MyPreferenceResponse(
                         .toList(),
                 StringJsonArrays.fromJson(preference.getAllergies()),
                 EnumJsonArrays.fromJson(preference.getTravelCategories(), TravelCategory.class),
+                StringJsonArrays.fromJson(preference.getExcludedCategories()),
                 new Budget(preference.getBudgetMax()),
                 loadedFromPrevious,
                 preference.getUpdatedAt());

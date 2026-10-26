@@ -5,6 +5,8 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
@@ -19,8 +21,19 @@ public record SavePreferenceRequest(
         @NotNull(message = MESSAGE) List<@NotNull(message = MESSAGE) @Valid FoodPreferenceItem> foodPreferences,
         @NotNull(message = MESSAGE) List<String> allergies,
         @NotEmpty(message = MESSAGE) List<String> travelCategories,
-        @Valid Budget budget
+        @Valid Budget budget,
+        @Size(max = 20, message = MESSAGE)
+        List<@NotNull(message = MESSAGE) @Pattern(regexp = "[A-Z][A-Z0-9_]{0,49}", message = MESSAGE) String> excludedCategories
 ) {
+    public SavePreferenceRequest {
+        excludedCategories = excludedCategories == null ? List.of() : excludedCategories;
+    }
+
+    public SavePreferenceRequest(List<String> transportTypes, List<FoodPreferenceItem> foodPreferences,
+                                 List<String> allergies, List<String> travelCategories, Budget budget) {
+        this(transportTypes, foodPreferences, allergies, travelCategories, budget, List.of());
+    }
+
     static final String MESSAGE = "알 수 없는 카테고리이거나 알레르기·예산 값이 올바르지 않습니다.";
 
     public record FoodPreferenceItem(

@@ -67,6 +67,10 @@ public class Preference {
     @Column(name = "travel_categories")
     private String travelCategories;
 
+    /** 익스트림모드 안전 조건 코드의 JSON 배열 (선호 카테고리와 별도) */
+    @Column(name = "excluded_categories", length = 2000)
+    private String excludedCategories = "[]";
+
     @Column(name = "budget_max")
     private Integer budgetMax;
 
@@ -80,7 +84,7 @@ public class Preference {
 
     @Builder
     private Preference(Trip trip, User user, Set<TransportType> transportTypes, List<FoodPreference> foodPreferences,
-                       String allergies, String travelCategories, Integer budgetMax) {
+                       String allergies, String travelCategories, Integer budgetMax, String excludedCategories) {
         this.trip = trip;
         this.user = user;
         if (transportTypes != null) {
@@ -92,6 +96,7 @@ public class Preference {
         this.allergies = allergies;
         this.travelCategories = travelCategories;
         this.budgetMax = budgetMax;
+        this.excludedCategories = excludedCategories == null ? "[]" : excludedCategories;
     }
 
     /** 그룹 의견 수집(PUT) 시 교통수단 목록을 통째로 교체 */
@@ -121,6 +126,11 @@ public class Preference {
         this.budgetMax = budgetMax;
     }
 
+    public void changeExcludedCategories(String excludedCategories) {
+        this.excludedCategories = excludedCategories == null ? "[]" : excludedCategories;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     private static List<FoodPreference> copyValidFoodPreferences(List<FoodPreference> foodPreferences) {
         List<FoodPreference> copy = new ArrayList<>(foodPreferences.size());
         Set<String> foods = new HashSet<>();
@@ -136,6 +146,6 @@ public class Preference {
     /** 이전 회차 취향을 새 여행 회차로 복사 (불러와서 수정하기용) */
     public Preference copyTo(Trip newTrip) {
         return new Preference(newTrip, user, new HashSet<>(transportTypes), new ArrayList<>(foodPreferences),
-                allergies, travelCategories, budgetMax);
+                allergies, travelCategories, budgetMax, excludedCategories);
     }
 }

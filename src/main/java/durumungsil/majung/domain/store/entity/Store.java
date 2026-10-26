@@ -39,6 +39,17 @@ public class Store {
     @Column(name = "destination_type")
     private Type destinationType;
 
+    /** 명세의 장소 세부 분류 코드 (예: KOREAN, CULTURE). 미보강 데이터는 null. */
+    @Column(name = "place_category", length = 50)
+    private String placeCategory;
+
+    /** 안전 조건 코드 (예: EXTREME_HEIGHT). 장소 데이터 보강 시 함께 적재한다. */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "store_safety_categories", joinColumns = @JoinColumn(name = "destination_id"),
+            uniqueConstraints = @UniqueConstraint(columnNames = {"destination_id", "category"}))
+    @Column(name = "category", nullable = false, length = 50)
+    private Set<String> safetyCategories = new HashSet<>();
+
     private Double latitude;
 
     private Double longitude;
@@ -93,7 +104,7 @@ public class Store {
     private Store(String destinationName, Type destinationType, Double latitude, Double longitude,
                   String sido, String sigungu, String address, String branch, Double rating, Integer pricePerPerson,
                   String phone, List<OpeningHour> openingHours, Set<String> amenities,
-                  LocalDateTime lastSyncedAt) {
+                  LocalDateTime lastSyncedAt, String placeCategory, Set<String> safetyCategories) {
         GeoUtils.validate(latitude, longitude);
         this.destinationName = destinationName;
         this.destinationType = destinationType;
@@ -113,6 +124,22 @@ public class Store {
             this.amenities.addAll(amenities);
         }
         this.lastSyncedAt = lastSyncedAt;
+        changeClassification(placeCategory, safetyCategories);
+    }
+
+    public void changeClassification(String placeCategory, Set<String> safetyCategories) {
+        Set<String> replacement = safetyCategories == null ? Set.of() : new HashSet<>(safetyCategories);
+        if ((placeCategory != null && !isCategoryCode(placeCategory))
+                || replacement.stream().anyMatch(code -> !isCategoryCode(code))) {
+            throw new IllegalArgumentException("장소 분류 코드는 50자 이내의 대문자·숫자·밑줄이어야 합니다.");
+        }
+        this.placeCategory = placeCategory;
+        this.safetyCategories.clear();
+        this.safetyCategories.addAll(replacement);
+    }
+
+    private static boolean isCategoryCode(String value) {
+        return value != null && value.matches("[A-Z][A-Z0-9_]{0,49}");
     }
 
     /**
