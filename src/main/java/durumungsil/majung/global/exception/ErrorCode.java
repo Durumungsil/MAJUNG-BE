@@ -52,6 +52,14 @@ public enum ErrorCode {
     PREFERENCE_NOT_FOUND(HttpStatus.NOT_FOUND, "아직 입력한 취향 정보가 없습니다."),
     NO_PREFERENCE_TO_SUMMARIZE(HttpStatus.CONFLICT, "취향을 입력한 멤버가 없어 통합할 수 없습니다."),
 
+    // 익스트림모드
+    NOT_EXTREME_MODE(HttpStatus.CONFLICT, "익스트림모드로 확정된 여행이 아닙니다."),
+    MINIMUM_CONSTRAINTS_NOT_FOUND(HttpStatus.NOT_FOUND, "그룹 취향 정보가 아직 없습니다."),
+    NO_ROULETTE_DESTINATION(HttpStatus.CONFLICT, "조건에 맞는 여행지가 없어 추첨할 수 없습니다."),
+    NO_ROULETTE_RESTAURANT(HttpStatus.CONFLICT, "조건에 맞는 음식점이 없어 추첨할 수 없습니다."),
+    ROULETTE_RESULT_NOT_FOUND(HttpStatus.NOT_FOUND, "룰렛 결과를 찾을 수 없습니다."),
+    INVALID_ROULETTE_REGION(HttpStatus.BAD_REQUEST, "요청 지역이 현재 여행 지역과 일치하지 않습니다."),
+
     // 스토리모드 - 여행지
     NOT_STORY_MODE(HttpStatus.CONFLICT, "스토리모드로 확정된 여행이 아닙니다."),
     PREFERENCE_NOT_MERGED(HttpStatus.CONFLICT, "그룹 취향이 통합되지 않아 추천할 수 없습니다."),

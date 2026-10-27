@@ -42,7 +42,7 @@ durumungsil.majung
 │   ├── store       장소 (여행지·식당)
 │   ├── story       스토리모드: 여행지 추천·선택, 타임라인
 │   ├── adventure   모험모드: 커리큘럼, 미션
-│   └── roulette    익스트림 룰렛 (엔티티만)
+│   └── roulette    익스트림모드: 최소 조건, 여행지·식당 룰렛, 결과 조회
 │       └── {controller, service, repository, entity, dto/request, dto/response}
 └── global          config, security, exception, response, util, ai
 ```
@@ -104,3 +104,7 @@ refactor: 상권 조회 로직 서비스 계층으로 분리
 ## 스토리모드
 
 [API·동작 정책·임시 구현 범위](docs/story-mode.md)를 참고합니다.
+
+## 익스트림모드
+
+[API·추첨 정책·장소 분류 보강·검증 방법](docs/extreme-mode.md)을 참고합니다.
