@@ -20,9 +20,14 @@ public final class AllergyNormalizer {
         Set<Allergy> result = EnumSet.noneOf(Allergy.class);
         for (String value : raw) {
             if (value == null || value.isBlank()) continue;
+            try {
+                result.add(Allergy.valueOf(value.strip().toUpperCase(Locale.ROOT)));
+                continue;
+            } catch (IllegalArgumentException ignored) { }
             String text = value.toLowerCase(Locale.ROOT).replace(" ", "");
             Set<Allergy> found = EnumSet.noneOf(Allergy.class);
-            WORDS.forEach((allergy, words) -> { if (words.stream().anyMatch(text::contains)) found.add(allergy); });
+            WORDS.forEach((allergy, words) -> { if (words.stream().anyMatch(word -> text.contains(word)
+                    && !(word.equals("fish") && text.contains("shellfish")))) found.add(allergy); });
             if(text.equals("콩") || text.equals("콩알레르기")) found.add(Allergy.SOY);
             if (found.isEmpty()) found.add(Allergy.UNKNOWN);
             result.addAll(found);

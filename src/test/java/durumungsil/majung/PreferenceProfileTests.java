@@ -22,6 +22,7 @@ import static org.mockito.Mockito.*;
 
 @SpringBootTest
 class PreferenceProfileTests {
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
     @Autowired EntityManager em; @Autowired TransactionTemplate tx;
     @Autowired PreferenceProfileRepository profiles; @Autowired ProfileLifecycle lifecycle;
     @Autowired ProfileTransactions transactions; @Autowired ProfileReader reader;
@@ -60,6 +61,28 @@ class PreferenceProfileTests {
             assertThat(data.allergies().normalized()).containsExactly(Allergy.SHELLFISH,Allergy.PEANUT);
         });
     }
+    @Test void expiredLeaseIsReclaimedAndIncompletePendingDoesNotBlockRecoveryQueue() {
+        var f=seed();
+        var profile=profiles.findById(f.trip()).orElseThrow();
+        var first=transactions.claim(new ProfileJob(f.trip(),profile.getVersion())).orElseThrow();
+        jdbc.update("update preference_profile set updated_at=? where trip_id=?",
+                java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(360)), f.trip());
+        assertThat(profiles.findStale(java.time.Instant.now().minusSeconds(300),org.springframework.data.domain.PageRequest.of(0,100))).contains(f.trip());
+        var replacement=transactions.claim(new ProfileJob(f.trip(),profile.getVersion())).orElseThrow();
+        assertThat(transactions.finish(first,first.rules())).isFalse();
+        assertThat(transactions.finish(replacement,replacement.rules())).isTrue();
+        tx.executeWithoutResult(status->{
+            var group=groupReader.getGroupForUpdate(f.group());
+            var user=User.builder().googleSub(UUID.randomUUID().toString()).build(); em.persist(user);
+            em.persist(GroupMember.builder().group(group).user(user).build()); group.increaseMemberCount(); em.flush();
+            lifecycle.invalidate(em.find(Trip.class,f.trip()));
+        });
+        jdbc.update("update preference_profile set updated_at=? where trip_id=?",
+                java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(360)), f.trip());
+        assertThat(profiles.findStale(java.time.Instant.now().minusSeconds(300),org.springframework.data.domain.PageRequest.of(0,100))).doesNotContain(f.trip());
+        assertThat(AllergyNormalizer.normalize(List.of("SHELLFISH"))).containsExactly(Allergy.SHELLFISH);
+    }
+
     @Test void unconfirmedPaidTierNeverTransmitsAllergiesAndInvalidAiFallsBack() {
         var f=seed(); var work=transactions.claim(new ProfileJob(f.trip(),profiles.findById(f.trip()).orElseThrow().getVersion())).orElseThrow();
         GeminiClient gemini=mock(GeminiClient.class);
