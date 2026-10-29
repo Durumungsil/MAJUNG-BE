@@ -17,6 +17,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.TreeSet;
+import durumungsil.majung.domain.preference.profile.ProfileReader;
+import durumungsil.majung.domain.preference.profile.PreferenceProfileRepository;
+import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +27,8 @@ import java.util.TreeSet;
 public class MinimumConstraintsService {
     private final GroupReader groupReader;
     private final PreferenceRepository preferenceRepository;
+    private final ProfileReader profiles;
+    private final PreferenceProfileRepository profileRepository;
 
     public MinimumConstraintsResponse get(Long userId, Long groupId) {
         groupReader.getMemberGroup(groupId, userId);
@@ -42,16 +47,12 @@ public class MinimumConstraintsService {
         if (preferences.isEmpty()) {
             throw new BusinessException(ErrorCode.MINIMUM_CONSTRAINTS_NOT_FOUND);
         }
-        TreeSet<String> allergies = new TreeSet<>();
-        TreeSet<String> exclusions = new TreeSet<>();
-        preferences.forEach(preference -> {
-            allergies.addAll(StringJsonArrays.fromJson(preference.getAllergies()));
-            exclusions.addAll(StringJsonArrays.fromJson(preference.getExcludedCategories()));
-        });
-        LocalDateTime updatedAt = preferences.stream().map(Preference::getUpdatedAt)
-                .max(LocalDateTime::compareTo).orElseThrow();
-        return new MinimumConstraintsResponse(trip.getGroup().getId(), List.copyOf(allergies),
-                List.copyOf(exclusions), preferences.size(), updatedAt.atZone(ZoneId.systemDefault()).toInstant());
+        var profile=profiles.forTrip(trip);
+        Instant updatedAt=profileRepository.findById(trip.getId()).map(p->p.getUpdatedAt()).orElseGet(()->preferences.stream()
+                .map(Preference::getUpdatedAt).max(LocalDateTime::compareTo).orElseThrow().atZone(ZoneId.systemDefault()).toInstant());
+        return new MinimumConstraintsResponse(trip.getGroup().getId(),profile.allergies().normalized().stream().map(Enum::name).toList(),
+                profile.avoidPlaceTypes(),preferences.size(),updatedAt);
+
     }
 
     static void validateMode(Trip trip) {

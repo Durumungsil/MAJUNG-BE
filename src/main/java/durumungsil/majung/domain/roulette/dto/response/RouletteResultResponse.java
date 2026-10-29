@@ -9,6 +9,6 @@ public record RouletteResultResponse(Long rouletteId, Long groupId, RouletteType
                                       RoulettePlaceResponse place, Instant drawnAt) {
     public static RouletteResultResponse of(RouletteResult result) {
         return new RouletteResultResponse(result.getId(), result.getTrip().getGroup().getId(),
-                result.getType(), RoulettePlaceResponse.of(result.getStore()), result.getDrawnAt());
+                result.getType(), RoulettePlaceResponse.of(result), result.getDrawnAt());
     }
 }
