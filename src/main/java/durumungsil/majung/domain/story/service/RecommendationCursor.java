@@ -7,9 +7,14 @@ import org.springframework.stereotype.Component;
 
 import tools.jackson.databind.ObjectMapper;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Base64;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.InflaterInputStream;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -28,22 +33,39 @@ public class RecommendationCursor {
     }
 
     public String encode(DestinationRecommendationService.PageState state) {
-        byte[] bytes = mapper.writeValueAsBytes(state);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
-                + "."
-                + Base64.getUrlEncoder().withoutPadding().encodeToString(sign(bytes));
+        try {
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            try (DeflaterOutputStream compressed = new DeflaterOutputStream(output)) {
+                compressed.write(mapper.writeValueAsBytes(state));
+            }
+            byte[] bytes = output.toByteArray();
+            String encoded =
+                    Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+                            + "."
+                            + Base64.getUrlEncoder().withoutPadding().encodeToString(sign(bytes));
+            if (encoded.length() > 60_000)
+                throw new BusinessException(ErrorCode.INVALID_RECOMMENDATION_QUERY);
+            return encoded;
+        } catch (IOException error) {
+            throw new IllegalStateException("페이지 압축 실패");
+        }
     }
 
     public DestinationRecommendationService.PageState decode(String cursor) {
         try {
-            if (cursor.length() > 200000) throw new IllegalArgumentException();
+            if (cursor.length() > 60_000) throw new IllegalArgumentException();
             String[] parts = cursor.split("\\.", -1);
             if (parts.length != 2) throw new IllegalArgumentException();
             byte[] bytes = Base64.getUrlDecoder().decode(parts[0]);
             if (!MessageDigest.isEqual(sign(bytes), Base64.getUrlDecoder().decode(parts[1])))
                 throw new IllegalArgumentException();
-            return mapper.readValue(bytes, DestinationRecommendationService.PageState.class);
-        } catch (RuntimeException error) {
+            try (InflaterInputStream input =
+                    new InflaterInputStream(new ByteArrayInputStream(bytes))) {
+                byte[] json = input.readNBytes(1_000_001);
+                if (json.length > 1_000_000) throw new IllegalArgumentException();
+                return mapper.readValue(json, DestinationRecommendationService.PageState.class);
+            }
+        } catch (RuntimeException | IOException error) {
             throw new BusinessException(ErrorCode.INVALID_RECOMMENDATION_QUERY);
         }
     }

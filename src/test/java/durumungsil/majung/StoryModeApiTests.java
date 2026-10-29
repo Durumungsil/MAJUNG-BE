@@ -35,8 +35,9 @@ import java.time.*;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class StoryModeApiTests {
+    @org.springframework.boot.test.web.server.LocalServerPort int port;
     @Autowired EntityManager em;
     @Autowired TransactionTemplate tx;
     @Autowired JwtTokenProvider tokens;
@@ -120,6 +121,56 @@ class StoryModeApiTests {
 
     JsonNode data(String response) {
         return mapper.readTree(response).path("data");
+    }
+
+    @Test
+    void largeBufferedPageCanBePassedThroughRealHttpRequest() throws Exception {
+        var f = seed(true, TripMode.STORY);
+        when(client.searchText(any(), eq(Projection.RECOMMENDATION)))
+                .thenAnswer(
+                        invocation -> {
+                            var values =
+                                    java.util.stream.IntStream.range(0, 20)
+                                            .mapToObj(
+                                                    i ->
+                                                            new Place(
+                                                                    UUID.randomUUID().toString(),
+                                                                    "부산의 긴 장소 표시 이름 "
+                                                                            + UUID.randomUUID(),
+                                                                    new Location(35.1, 129),
+                                                                    List.of(
+                                                                            "museum",
+                                                                            "tourist_attraction",
+                                                                            "point_of_interest")))
+                                            .toList();
+                            return new Page(values, null);
+                        });
+        var http = java.net.http.HttpClient.newHttpClient();
+        String url =
+                "http://localhost:" + port + f.base() + "/destinations/recommendations?limit=1";
+        var first =
+                http.send(
+                        java.net.http.HttpRequest.newBuilder(java.net.URI.create(url))
+                                .header("Authorization", auth(f.owner()))
+                                .GET()
+                                .build(),
+                        java.net.http.HttpResponse.BodyHandlers.ofString());
+        org.assertj.core.api.Assertions.assertThat(first.statusCode()).isEqualTo(200);
+        String cursor = data(first.body()).path("next_cursor").asString();
+        org.assertj.core.api.Assertions.assertThat(cursor).isNotBlank();
+        var second =
+                http.send(
+                        java.net.http.HttpRequest.newBuilder(
+                                        java.net.URI.create(url + "&cursor=" + cursor))
+                                .header("Authorization", auth(f.owner()))
+                                .GET()
+                                .build(),
+                        java.net.http.HttpResponse.BodyHandlers.ofString());
+        org.assertj.core.api.Assertions.assertThat(second.statusCode()).isEqualTo(200);
+        org.assertj.core.api.Assertions.assertThat(
+                        data(second.body()).path("items").get(0).path("place_id").asString())
+                .isNotEqualTo(data(first.body()).path("items").get(0).path("place_id").asString());
+        verify(client, times(3)).searchText(any(), eq(Projection.RECOMMENDATION));
     }
 
     @Test
