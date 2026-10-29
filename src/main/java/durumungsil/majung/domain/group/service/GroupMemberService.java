@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import durumungsil.majung.domain.preference.profile.ProfileLifecycle;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +25,7 @@ public class GroupMemberService {
     private final GroupReader groupReader;
     private final GroupMemberRepository groupMemberRepository;
     private final PreferenceRepository preferenceRepository;
+    private final ProfileLifecycle profileLifecycle;
 
     /** 그룹 멤버 목록 (참여 순). preferences_completed 는 현재 여행 회차 기준 */
     public GroupMembersResponse getMembers(Long userId, Long groupId) {
@@ -46,5 +48,7 @@ public class GroupMemberService {
         }
         groupMemberRepository.delete(member);
         group.decreaseMemberCount();
+        groupMemberRepository.flush();
+        profileLifecycle.membershipChanged(groupId);
     }
 }

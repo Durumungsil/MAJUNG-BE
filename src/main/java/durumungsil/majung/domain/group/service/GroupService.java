@@ -27,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import durumungsil.majung.domain.preference.profile.ProfileLifecycle;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +40,7 @@ public class GroupService {
     private final GroupMemberRepository groupMemberRepository;
     private final TripRepository tripRepository;
     private final PreferenceRepository preferenceRepository;
+    private final ProfileLifecycle profileLifecycle;
 
     /** 그룹 생성 - 생성자가 방장이 되고, 첫 여행 회차를 함께 만든다 */
     @Transactional
@@ -142,6 +144,7 @@ public class GroupService {
                 validatePeriod(start, end, ErrorCode.INVALID_GROUP_SETTING);
                 trip.changeTravelPeriod(start, end);
             }
+            profileLifecycle.invalidate(trip);
         } else {
             trip = groupReader.findCurrentTrip(groupId);
         }

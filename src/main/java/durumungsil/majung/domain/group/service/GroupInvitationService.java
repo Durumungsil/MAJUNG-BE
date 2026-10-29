@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import durumungsil.majung.domain.preference.profile.ProfileLifecycle;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +26,7 @@ public class GroupInvitationService {
     private final InviteCodeGenerator inviteCodeGenerator;
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final ProfileLifecycle profileLifecycle;
 
     /** 초대 코드 조회 (방장만). 만료됐으면 새 코드로 재발급해서 내려준다 */
     @Transactional
@@ -65,6 +67,8 @@ public class GroupInvitationService {
 
         group.increaseMemberCount();
         GroupMember member = groupMemberRepository.save(GroupMember.builder().group(group).user(user).build());
+        groupMemberRepository.flush();
+        profileLifecycle.membershipChanged(groupId);
         return JoinGroupResponse.from(member);
     }
 

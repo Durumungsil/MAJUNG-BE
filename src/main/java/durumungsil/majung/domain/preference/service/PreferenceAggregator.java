@@ -9,6 +9,11 @@ import durumungsil.majung.domain.preference.dto.response.PreferenceSummaryRespon
 import durumungsil.majung.global.util.EnumJsonArrays;
 import durumungsil.majung.global.util.StringJsonArrays;
 import org.springframework.stereotype.Component;
+import durumungsil.majung.domain.preference.profile.*;
+import durumungsil.majung.domain.place.PlaceTypeCatalog;
+import durumungsil.majung.domain.story.service.GroupTaste;
+import durumungsil.majung.domain.trip.entity.Trip;
+import java.util.Comparator;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,6 +34,43 @@ import java.util.TreeSet;
  */
 @Component
 public class PreferenceAggregator {
+
+    /** AI가 수정할 수 없는 수치와 규칙 기반 검색어를 한 번에 만든다. */
+    public PreferenceProfileData profile(Trip trip, List<Preference> preferences, long version) {
+        var summary=aggregate(trip.getGroup(),preferences);
+        var taste=GroupTaste.from(preferences);
+        var categories=taste.categoryVotes().entrySet().stream().filter(e->!PlaceTypeCatalog.types(e.getKey()).isEmpty())
+                .map(e->new PreferenceProfileData.Category(e.getKey(),taste.ratio(e.getKey())))
+                .sorted(Comparator.comparingDouble(PreferenceProfileData.Category::ratio).reversed().thenComparing(PreferenceProfileData.Category::category)).toList();
+        Map<String,long[]> totals=new LinkedHashMap<>();
+        for (Preference p:preferences) for(FoodPreference food:p.getFoodPreferences()) {
+            long[] values=totals.computeIfAbsent(food.getFood(),key->new long[2]); values[0]+=food.getScore(); values[1]++;
+        }
+        var foods=totals.entrySet().stream().map(e->new PreferenceProfileData.Food(e.getKey(),(double)e.getValue()[0]/e.getValue()[1]))
+                .sorted(Comparator.comparingDouble(PreferenceProfileData.Food::score).reversed().thenComparing(PreferenceProfileData.Food::name)).toList();
+        List<TransportType> all=preferences.stream().flatMap(p->p.getTransportTypes().stream()).distinct().sorted().toList();
+        List<Allergy> allergies=AllergyNormalizer.normalize(summary.allergies());
+        TreeSet<String> avoid=new TreeSet<>(AllergyNormalizer.avoidTypes(allergies));
+        preferences.stream().flatMap(p->StringJsonArrays.fromJson(p.getExcludedCategories()).stream())
+                .map(value->value.toLowerCase(java.util.Locale.ROOT)).filter(PlaceTypeCatalog::allowsAvoidType).forEach(avoid::add);
+        List<PreferenceProfileData.SearchQuery> queries=new ArrayList<>();
+        for(var category:categories) if(category.category()!=TravelCategory.FOOD)
+            queries.add(new PreferenceProfileData.SearchQuery(trip.getRegion()+" "+PlaceTypeCatalog.label(category.category()),category.category(),PlaceTypeCatalog.types(category.category()).getFirst()));
+        int meals=categories.stream().anyMatch(c->c.category()==TravelCategory.FOOD)?2:1;
+        for(int i=0;i<meals;i++) {
+            String food=i<foods.size()?foods.get(i).name():(i==0?"식사 음식점":"한식 음식점");
+            queries.add(new PreferenceProfileData.SearchQuery(trip.getRegion()+" "+food,TravelCategory.FOOD,i==0?"restaurant":"korean_restaurant"));
+        }
+        if(categories.stream().anyMatch(c->c.category()==TravelCategory.FOOD))
+            queries.add(new PreferenceProfileData.SearchQuery(trip.getRegion()+" 맛집",TravelCategory.FOOD,"restaurant"));
+        Integer meal=summary.budget().max()==null?null:trip.mealBudgetPerPerson(summary.budget().max());
+        String description=categories.isEmpty()?"끼니를 포함한 그룹 여행":categories.stream().limit(3)
+                .map(c->PlaceTypeCatalog.label(c.category())).collect(java.util.stream.Collectors.joining("·"))+" 선호 그룹";
+        return new PreferenceProfileData(version,GeneratedBy.RULE,description,
+                new PreferenceProfileData.Transport(taste.primaryTransportOr(TransportType.BUS),all),
+                new PreferenceProfileData.Budget(summary.budget().min(),summary.budget().max(),meal),categories,foods,
+                new PreferenceProfileData.Allergies(allergies),List.copyOf(avoid),queries);
+    }
 
     public PreferenceSummaryResponse aggregate(Group group, List<Preference> preferences) {
         List<TransportType> transportTypes = mostFrequent(TransportType.class,

@@ -21,8 +21,6 @@ import java.util.Optional;
 @Component
 public class RestGeminiClient implements GeminiClient {
 
-    private static final int LOG_BODY_LIMIT = 500;
-
     private final GeminiProperties properties;
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
@@ -66,11 +64,10 @@ public class RestGeminiClient implements GeminiClient {
                     .body(String.class);
             return extractText(response);
         } catch (RestClientResponseException e) {
-            log.warn("Gemini 호출 실패 (model={}, status={}): {}", properties.model(),
-                    e.getStatusCode().value(), truncate(e.getResponseBodyAsString()));
+            log.warn("Gemini 호출 실패 (model={}, status={})", properties.model(), e.getStatusCode().value());
             return Optional.empty();
         } catch (RuntimeException e) {
-            log.warn("Gemini 호출 실패 (model={}): {}", properties.model(), e.toString());
+            log.warn("Gemini 호출 실패 (model={}, type={})", properties.model(), e.getClass().getSimpleName());
             return Optional.empty();
         }
     }
@@ -100,10 +97,4 @@ public class RestGeminiClient implements GeminiClient {
         return Optional.of(text.toString());
     }
 
-    private static String truncate(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value.length() <= LOG_BODY_LIMIT ? value : value.substring(0, LOG_BODY_LIMIT) + "...";
-    }
 }

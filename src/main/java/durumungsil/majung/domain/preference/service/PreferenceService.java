@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import durumungsil.majung.domain.preference.profile.*;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +39,8 @@ public class PreferenceService {
     private final GroupReader groupReader;
     private final PreferenceRepository preferenceRepository;
     private final PreferenceAggregator preferenceAggregator;
+    private final ProfileLifecycle profileLifecycle;
+    private final PreferenceProfileRepository profileRepository;
 
     /** 그룹 의견 수집 - 진행 중인 여행 회차에 내 취향을 저장(없으면 생성, 있으면 통째로 교체) */
     @Transactional
@@ -76,6 +79,7 @@ public class PreferenceService {
         }
         preference.changeExcludedCategories(StringJsonArrays.toJson(new LinkedHashSet<>(request.excludedCategories())));
         preferenceRepository.flush(); // updated_at 반영
+        profileLifecycle.invalidate(trip);
         return new SavePreferenceResponse(groupId, userId, true, preference.getUpdatedAt());
     }
 
@@ -107,7 +111,9 @@ public class PreferenceService {
         if (preferences.isEmpty()) {
             throw new BusinessException(ErrorCode.NO_PREFERENCE_TO_SUMMARIZE);
         }
-        return preferenceAggregator.aggregate(group, preferences);
+        ProfileStatus status=trip==null?ProfileStatus.PENDING:profileRepository.findById(trip.getId())
+                .map(PreferenceProfile::getStatus).orElse(ProfileStatus.PENDING);
+        return preferenceAggregator.aggregate(group, preferences).withProfileStatus(status);
     }
 
     /**
