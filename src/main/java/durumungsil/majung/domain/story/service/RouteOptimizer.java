@@ -1,6 +1,6 @@
 package durumungsil.majung.domain.story.service;
 
-import durumungsil.majung.domain.store.entity.Store;
+import durumungsil.majung.domain.place.PlanningPlace;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -81,19 +81,19 @@ public final class RouteOptimizer {
     }
 
     /** 장소 사이 직선거리(m). 좌표가 없으면 0 */
-    static double meters(Store from, Store to) {
-        if (from.getLatitude() == null || from.getLongitude() == null
-                || to.getLatitude() == null || to.getLongitude() == null) {
+    static double meters(PlanningPlace from, PlanningPlace to) {
+        if (from.latitude() == null || from.longitude() == null
+                || to.latitude() == null || to.longitude() == null) {
             return 0;
         }
-        return to.distanceMetersFrom(from.getLatitude(), from.getLongitude());
+        return to.distanceMetersFrom(from.latitude(), from.longitude());
     }
 
     /** 열린 경로 길이(m) */
     static double pathLength(List<TimelineScheduler.Stop> path) {
         double total = 0;
         for (int i = 1; i < path.size(); i++) {
-            total += meters(path.get(i - 1).store(), path.get(i).store());
+            total += meters(path.get(i - 1).place(), path.get(i).place());
         }
         return total;
     }
@@ -120,7 +120,7 @@ public final class RouteOptimizer {
         double total = 0;
         for (int i = 1; i < sequence.size(); i++) {
             if (dates[i].equals(dates[i - 1])) {
-                total += meters(sequence.get(i - 1).store(), sequence.get(i).store());
+                total += meters(sequence.get(i - 1).place(), sequence.get(i).place());
             }
         }
         return total;
@@ -135,7 +135,7 @@ public final class RouteOptimizer {
         double[][] distance = new double[n][n];
         for (int i = 0; i < n; i++) {
             for (int j = i + 1; j < n; j++) {
-                distance[i][j] = distance[j][i] = meters(stops.get(i).store(), stops.get(j).store());
+                distance[i][j] = distance[j][i] = meters(stops.get(i).place(), stops.get(j).place());
             }
         }
         int[] best = null;

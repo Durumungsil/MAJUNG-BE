@@ -5,8 +5,12 @@ import durumungsil.majung.domain.story.entity.Itinerary;
 import durumungsil.majung.domain.story.entity.ItineraryItem;
 import durumungsil.majung.domain.story.entity.ItineraryItemType;
 import durumungsil.majung.domain.preference.entity.TransportType;
-import durumungsil.majung.domain.store.entity.Store;
-import durumungsil.majung.domain.store.repository.StoreRepository;
+import durumungsil.majung.domain.place.entity.GooglePlace;
+import durumungsil.majung.domain.place.PlanningPlace;
+import durumungsil.majung.domain.place.service.GooglePlaceService;
+import durumungsil.majung.domain.preference.entity.TravelCategory;
+import java.time.Clock;
+import durumungsil.majung.domain.place.repository.GooglePlaceRepository;
 import durumungsil.majung.domain.trip.entity.Trip;
 import durumungsil.majung.domain.story.dto.request.CreateTimelineRequest;
 import durumungsil.majung.domain.story.dto.request.UpdateTimelineItemRequest;
@@ -44,7 +48,9 @@ public class ItineraryService {
     static final TransportType DEFAULT_TRANSPORT = TransportType.BUS;
 
     private final GroupReader groupReader;
-    private final StoreRepository storeRepository;
+    private final GooglePlaceRepository placeRepository;
+    private final GooglePlaceService places;
+    private final Clock clock;
     private final PreferenceRepository preferenceRepository;
     private final DestinationSelectionRepository selectionRepository;
     private final ItineraryRepository itineraryRepository;
@@ -76,7 +82,7 @@ public class ItineraryService {
                 ? parseTransport(request.transportType())
                 : taste.primaryTransportOr(DEFAULT_TRANSPORT);
 
-        List<TimelineScheduler.Stop> stops = loadStops(trip, request.destinationIds(), startDate, endDate);
+        List<TimelineScheduler.Stop> stops = loadStops(trip, request.placeIds(), startDate, endDate);
         if (stops.isEmpty()) {
             throw new BusinessException(ErrorCode.NO_DESTINATION_FOR_TIMELINE);
         }
@@ -106,7 +112,7 @@ public class ItineraryService {
                         .date(planned.date())
                         .sequence(planned.sequence())
                         .type(planned.type())
-                        .store(planned.store())
+                        .googlePlace(planned.place()==null?null:placeRepository.getReferenceById(planned.place().id()))
                         .startAt(planned.startAt())
                         .endAt(planned.endAt())
                         .stayMinutes(planned.stayMinutes())
@@ -125,7 +131,7 @@ public class ItineraryService {
     public TimelineResponse getTimeline(Long userId, Long groupId, Long itineraryId) {
         groupReader.getMemberGroup(groupId, userId);
         Itinerary itinerary = getGroupItinerary(groupId, itineraryId);
-        return toResponse(groupId, itinerary, itemRepository.findAllByItineraryIdWithStore(itineraryId), null);
+        return toResponse(groupId, itinerary, itemRepository.findAllByItineraryIdWithPlace(itineraryId), null);
     }
 
     /**
@@ -138,7 +144,7 @@ public class ItineraryService {
                                                  UpdateTimelineItemRequest request) {
         groupReader.getMemberGroupForUpdate(groupId, userId);
         Itinerary itinerary = getGroupItinerary(groupId, itineraryId);
-        List<ItineraryItem> allItems = itemRepository.findAllByItineraryIdWithStore(itineraryId);
+        List<ItineraryItem> allItems = itemRepository.findAllByItineraryIdWithPlace(itineraryId);
         ItineraryItem item = allItems.stream()
                 .filter(candidate -> candidate.getId().equals(itemId))
                 .findFirst()
@@ -167,8 +173,7 @@ public class ItineraryService {
 
         item.changeSchedule(startAt, endAt, memo);
         itemRepository.flush();
-        boolean hasConflict = item.getStore() != null && !TimelineScheduler.isOpenThroughout(item.getStore(),
-                item.getDate(), TimelineScheduler.toMinutes(startAt), TimelineScheduler.toMinutes(endAt));
+        boolean hasConflict = false; // 영업시간을 요청하지 않으므로 충돌 판정 대상이 아니다.
         return new UpdateTimelineItemResponse(itineraryId, itemId, startAt, endAt, memo, hasConflict,
                 LocalDateTime.now());
     }
@@ -187,25 +192,21 @@ public class ItineraryService {
      * destination_ids 를 보내면 방문일 없이, 안 보내면 저장한 여행지 선택을 방문일에 맞춰 배치한다.
      * 방문 순서는 플래너가 동선에 맞춰 다시 정한다 (받은 순서는 동률일 때만 쓴다).
      */
-    private List<TimelineScheduler.Stop> loadStops(Trip trip, List<Long> destinationIds,
+    private List<TimelineScheduler.Stop> loadStops(Trip trip, List<String> placeIds,
                                                    LocalDate startDate, LocalDate endDate) {
-        if (destinationIds != null && !destinationIds.isEmpty()) {
-            Map<Long, Store> stores = storeRepository.findAllById(destinationIds).stream()
-                    .collect(Collectors.toMap(Store::getDestinationId, Function.identity()));
-            List<TimelineScheduler.Stop> stops = new ArrayList<>();
-            for (Long destinationId : destinationIds) {
-                Store store = stores.get(destinationId);
-                if (store == null) {
-                    throw new BusinessException(ErrorCode.DESTINATION_NOT_FOUND);
-                }
-                stops.add(new TimelineScheduler.Stop(store, null));
-            }
-            return stops;
+        var selected = selectionRepository.findAllByTripIdWithPlace(trip.getId());
+        if (placeIds != null && !placeIds.isEmpty()) {
+            if (new java.util.HashSet<>(placeIds).size() != placeIds.size())
+                throw new BusinessException(ErrorCode.INVALID_TIMELINE_REQUEST);
+            Map<String, TravelCategory> categories = new java.util.HashMap<>();
+            selected.forEach(s -> categories.put(s.getGooglePlace().getPlaceId(),s.getCategory()));
+            return placeIds.stream().map(id -> new TimelineScheduler.Stop(
+                    PlanningPlace.of(places.requireLocation(id),categories.getOrDefault(id,TravelCategory.SIGHTSEEING)),null)).toList();
         }
-        return selectionRepository.findAllByTripIdWithStore(trip.getId()).stream()
-                .filter(selection -> !selection.getVisitDate().isBefore(startDate)
+        return selected.stream().filter(selection -> !selection.getVisitDate().isBefore(startDate)
                         && !selection.getVisitDate().isAfter(endDate))
-                .map(selection -> new TimelineScheduler.Stop(selection.getStore(), selection.getVisitDate()))
+                .map(selection -> new TimelineScheduler.Stop(PlanningPlace.of(
+                        places.requireLocation(selection.getGooglePlace().getPlaceId()),selection.getCategory()),selection.getVisitDate()))
                 .toList();
     }
 
@@ -225,7 +226,7 @@ public class ItineraryService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_TIMELINE_REQUEST));
     }
 
-    private static TimelineResponse toResponse(Long groupId, Itinerary itinerary, List<ItineraryItem> items,
+    private TimelineResponse toResponse(Long groupId, Itinerary itinerary, List<ItineraryItem> items,
                                                String generatedBy) {
         // day 별로 묶고 (입력은 day, sequence 순), MOVE 는 앞뒤 VISIT 을 출발지·도착지로 채운다
         Map<Integer, List<ItineraryItem>> byDay = new LinkedHashMap<>();
@@ -241,24 +242,20 @@ public class ItineraryService {
             for (int i = 0; i < dayItems.size(); i++) {
                 ItineraryItem item = dayItems.get(i);
                 if (item.getType() == ItineraryItemType.MOVE) {
-                    Store from = i > 0 ? dayItems.get(i - 1).getStore() : null;
-                    Store to = i + 1 < dayItems.size() ? dayItems.get(i + 1).getStore() : null;
-                    responses.add(new TimelineItemResponse(item.getId(), item.getSequence(), item.getType(),
-                            null, null, null, null, null,
-                            from != null ? from.getDestinationId() : null,
-                            from != null ? from.getDestinationName() : null,
-                            to != null ? to.getDestinationId() : null,
-                            to != null ? to.getDestinationName() : null,
-                            item.getDurationMinutes(), item.getDistanceMeters(),
-                            TransportRange.isLongDistance(itinerary.getTransportType(), item.getDistanceMeters()),
-                            item.getMemo()));
+                    GooglePlace from = i > 0 ? dayItems.get(i - 1).getGooglePlace() : null;
+                    GooglePlace to = i + 1 < dayItems.size() ? dayItems.get(i + 1).getGooglePlace() : null;
+                    responses.add(new TimelineItemResponse(item.getId(),item.getSequence(),item.getType(),
+                            null,null,null,null,null,null,
+                            from==null?null:from.getPlaceId(),latitude(from),longitude(from),
+                            to==null?null:to.getPlaceId(),latitude(to),longitude(to),
+                            item.getDurationMinutes(),item.getDistanceMeters(),
+                            TransportRange.isLongDistance(itinerary.getTransportType(),item.getDistanceMeters()),item.getMemo()));
                 } else {
-                    Store store = item.getStore();
-                    responses.add(new TimelineItemResponse(item.getId(), item.getSequence(), item.getType(),
-                            store != null ? store.getDestinationId() : null,
-                            store != null ? store.getDestinationName() : null,
-                            item.getStartAt(), item.getEndAt(), item.getStayMinutes(),
-                            null, null, null, null, null, null, null, item.getMemo()));
+                    GooglePlace place=item.getGooglePlace();
+                    responses.add(new TimelineItemResponse(item.getId(),item.getSequence(),item.getType(),
+                            place==null?null:place.getPlaceId(),latitude(place),longitude(place),
+                            item.getStartAt(),item.getEndAt(),item.getStayMinutes(),
+                            null,null,null,null,null,null,null,null,null,item.getMemo()));
                 }
             }
             days.add(new TimelineResponse.Day(day, dayItems.get(0).getDate(), responses));
@@ -269,4 +266,7 @@ public class ItineraryService {
                 itinerary.getDayStartTime(), itinerary.getDayEndTime(), days,
                 itinerary.getGeneratedAt(), itinerary.getUpdatedAt(), generatedBy);
     }
+    private Double latitude(GooglePlace place) { return place!=null && place.hasFreshLocation(clock.instant())?place.getLatitude():null; }
+    private Double longitude(GooglePlace place) { return place!=null && place.hasFreshLocation(clock.instant())?place.getLongitude():null; }
+
 }

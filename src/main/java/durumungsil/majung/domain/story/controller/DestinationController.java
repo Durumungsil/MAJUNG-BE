@@ -36,23 +36,25 @@ public class DestinationController {
             @AuthenticationPrincipal AuthUser authUser,
             @PathVariable Long groupId,
             @RequestParam(required = false) Integer limit,
-            @RequestParam(required = false) List<String> categories,
+            @RequestParam(required = false) String category,
             @RequestParam(required = false) String sort,
             @RequestParam(required = false) String cursor) {
         return ApiResponse.success("여행지 후보를 추천했습니다.",
-                recommendationService.recommend(authUser.id(), groupId, limit, categories, sort, cursor));
+                recommendationService.recommend(authUser.id(), groupId, limit, category, sort, cursor));
     }
 
     /** 2차 추천 - 기준 여행지 주변 */
-    @GetMapping("/{destinationId}/recommendations")
+    @GetMapping("/{placeId}/recommendations")
     public ApiResponse<NearbyDestinationsResponse> recommendNearby(
             @AuthenticationPrincipal AuthUser authUser,
             @PathVariable Long groupId,
-            @PathVariable Long destinationId,
+            @PathVariable String placeId,
             @RequestParam(required = false) Integer limit,
-            @RequestParam(name = "radius_meters", required = false) Integer radiusMeters) {
+            @RequestParam(name = "radius_meters", required = false) Integer radiusMeters,
+            @RequestParam(required=false) String category,
+            @RequestParam(required=false) String cursor) {
         return ApiResponse.success("주변 여행지를 추천했습니다.",
-                recommendationService.recommendNearby(authUser.id(), groupId, destinationId, limit, radiusMeters));
+                recommendationService.recommendNearby(authUser.id(), groupId, placeId, limit, radiusMeters, category, cursor));
     }
 
     /** 여행지 선택 저장 */

@@ -1,6 +1,8 @@
 package durumungsil.majung.domain.story.dto.request;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -17,7 +19,7 @@ import java.util.List;
 public record CreateTimelineRequest(
         LocalDate startDate,
         LocalDate endDate,
-        List<@NotNull(message = MESSAGE) Long> destinationIds,
+        @Size(max=50) List<@NotNull(message = MESSAGE) @Pattern(regexp="[A-Za-z0-9_-]{1,255}",message=MESSAGE) String> placeIds,
         String transportType,
         LocalTime dayStartTime,
         LocalTime dayEndTime

@@ -2,9 +2,8 @@ package durumungsil.majung;
 
 import durumungsil.majung.domain.story.entity.ItineraryItemType;
 import durumungsil.majung.domain.preference.entity.TransportType;
-import durumungsil.majung.domain.store.entity.OpeningHour;
-import durumungsil.majung.domain.store.entity.Store;
-import durumungsil.majung.domain.store.entity.Type;
+import durumungsil.majung.domain.place.PlanningPlace;
+import durumungsil.majung.domain.preference.entity.TravelCategory;
 import durumungsil.majung.domain.story.service.RouteOptimizer;
 import durumungsil.majung.domain.story.service.TimelineScheduler;
 import durumungsil.majung.domain.story.service.TransportRange;
@@ -22,9 +21,8 @@ class TimelineSchedulerTests {
 
     static final LocalDate DAY1 = LocalDate.of(2026, 10, 3);
 
-    static Store store(String name, double latitude, double longitude, List<OpeningHour> hours) {
-        return Store.builder().destinationName(name).destinationType(Type.ART_SPORTS)
-                .latitude(latitude).longitude(longitude).openingHours(hours).build();
+    static PlanningPlace store(String name, double latitude, double longitude) {
+        return new PlanningPlace(name,latitude,longitude,TravelCategory.CULTURE);
     }
 
     static TimelineScheduler.Settings settings(LocalDate end, String dayStart, String dayEnd) {
@@ -34,8 +32,8 @@ class TimelineSchedulerTests {
 
     @Test
     void visitsAreChainedWithMoveItemsInBetween() {
-        Store first = store("A", 35.1000, 129.0000, List.of());
-        Store second = store("B", 35.1080, 129.0000, List.of()); // 약 890m 북쪽
+        PlanningPlace first = store("A", 35.1000, 129.0000);
+        PlanningPlace second = store("B", 35.1080, 129.0000); // 약 890m 북쪽
 
         List<TimelineScheduler.PlannedItem> plan = TimelineScheduler.schedule(List.of(
                 new TimelineScheduler.Stop(first, null), new TimelineScheduler.Stop(second, null)),
@@ -50,14 +48,14 @@ class TimelineSchedulerTests {
         assertEquals(LocalTime.of(10, 30), plan.get(0).endAt());
         assertEquals(minutes, plan.get(1).durationMinutes());
         assertEquals(meters, plan.get(1).distanceMeters());
-        assertNull(plan.get(1).store());
+        assertNull(plan.get(1).place());
         assertEquals(LocalTime.of(10, 30).plusMinutes(minutes), plan.get(2).startAt());
     }
 
     @Test
     void overflowingVisitMovesToTheNextDayWithoutMove() {
-        Store first = store("A", 35.1, 129.0, List.of());
-        Store second = store("B", 35.1, 129.001, List.of());
+        PlanningPlace first = store("A", 35.1, 129.0);
+        PlanningPlace second = store("B", 35.1, 129.001);
 
         List<TimelineScheduler.PlannedItem> plan = TimelineScheduler.schedule(List.of(
                 new TimelineScheduler.Stop(first, null), new TimelineScheduler.Stop(second, null)),
@@ -71,43 +69,15 @@ class TimelineSchedulerTests {
     }
 
     @Test
-    void waitsUntilThePlaceOpens() {
-        Store late = store("늦게 여는 곳", 35.1, 129.0,
-                List.of(new OpeningHour(DAY1.getDayOfWeek(), LocalTime.of(11, 0), LocalTime.of(20, 0))));
-
-        List<TimelineScheduler.PlannedItem> plan = TimelineScheduler.schedule(
-                List.of(new TimelineScheduler.Stop(late, null)), settings(DAY1, "09:00", "21:00")).orElseThrow();
-
-        assertEquals(LocalTime.of(11, 0), plan.get(0).startAt());
-        assertEquals(LocalTime.of(12, 30), plan.get(0).endAt());
-    }
-
-    @Test
-    void placeClosedOnItsFixedDateCannotBeScheduled() {
-        Store closed = store("휴무", 35.1, 129.0,
-                List.of(new OpeningHour(DAY1.getDayOfWeek().plus(1), LocalTime.of(9, 0), LocalTime.of(20, 0))));
-
-        Optional<List<TimelineScheduler.PlannedItem>> plan = TimelineScheduler.schedule(
-                List.of(new TimelineScheduler.Stop(closed, DAY1)), settings(DAY1.plusDays(1), "09:00", "21:00"));
-
-        assertTrue(plan.isEmpty());
-    }
-
-    @Test
-    void freePlaceClosedTodayIsMovedToTheNextOpenDay() {
-        Store closedToday = store("내일만 영업", 35.1, 129.0,
-                List.of(new OpeningHour(DAY1.getDayOfWeek().plus(1), LocalTime.of(9, 0), LocalTime.of(20, 0))));
-
-        List<TimelineScheduler.PlannedItem> plan = TimelineScheduler.schedule(
-                List.of(new TimelineScheduler.Stop(closedToday, null)),
-                settings(DAY1.plusDays(1), "09:00", "21:00")).orElseThrow();
-
-        assertEquals(DAY1.plusDays(1), plan.get(0).date());
+    void missingOpeningHoursDoesNotDelayTheVisit() {
+        var place=store("place-id",35.1,129.0);
+        var plan=TimelineScheduler.schedule(List.of(new TimelineScheduler.Stop(place,DAY1)),settings(DAY1,"09:00","21:00")).orElseThrow();
+        assertEquals(LocalTime.of(9,0),plan.getFirst().startAt());
     }
 
     @Test
     void dayTooShortForTheStayFails() {
-        Store place = store("A", 35.1, 129.0, List.of());
+        PlanningPlace place = store("A", 35.1, 129.0);
 
         assertTrue(TimelineScheduler.schedule(List.of(new TimelineScheduler.Stop(place, null)),
                 settings(DAY1, "09:00", "10:00")).isEmpty());
@@ -115,8 +85,8 @@ class TimelineSchedulerTests {
 
     @Test
     void longMoveIsSplitToTheNextDayOnlyWhenAsked() {
-        Store first = store("A", 35.1000, 129.0, List.of());
-        Store far = store("먼 곳", 35.1500, 129.0, List.of()); // 약 5.6km → 도보 적정 거리(2km) 초과
+        PlanningPlace first = store("A", 35.1000, 129.0);
+        PlanningPlace far = store("먼 곳", 35.1500, 129.0); // 약 5.6km → 도보 적정 거리(2km) 초과
         List<TimelineScheduler.Stop> stops = List.of(
                 new TimelineScheduler.Stop(first, null), new TimelineScheduler.Stop(far, null));
         TimelineScheduler.Settings twoDays = settings(DAY1.plusDays(1), "09:00", "21:00");
@@ -137,25 +107,25 @@ class TimelineSchedulerTests {
 
     @Test
     void routeOptimizerOrdersFreeStopsByShortestPath() {
-        Store a = store("A", 35.100, 129.0, List.of());
-        Store b = store("B", 35.120, 129.0, List.of());
-        Store c = store("C", 35.110, 129.0, List.of());
-        Store d = store("D", 35.105, 129.0, List.of());
+        PlanningPlace a = store("A", 35.100, 129.0);
+        PlanningPlace b = store("B", 35.120, 129.0);
+        PlanningPlace c = store("C", 35.110, 129.0);
+        PlanningPlace d = store("D", 35.105, 129.0);
 
         List<String> names = RouteOptimizer.optimize(List.of(
                         new TimelineScheduler.Stop(a, null), new TimelineScheduler.Stop(b, null),
                         new TimelineScheduler.Stop(c, null), new TimelineScheduler.Stop(d, null)), DAY1)
-                .stream().map(stop -> stop.store().getDestinationName()).toList();
+                .stream().map(stop -> stop.place().id()).toList();
 
         assertEquals(List.of("A", "D", "C", "B"), names);
     }
 
     @Test
     void routeOptimizerKeepsFixedDatesAndInsertsFreeStopNextToTheClosestDay() {
-        Store dayOneA = store("1일차 A", 35.100, 129.0, List.of());
-        Store dayOneB = store("1일차 B", 35.101, 129.0, List.of());
-        Store dayTwo = store("2일차", 35.200, 129.0, List.of());
-        Store nearDayTwo = store("2일차 근처", 35.201, 129.0, List.of());
+        PlanningPlace dayOneA = store("1일차 A", 35.100, 129.0);
+        PlanningPlace dayOneB = store("1일차 B", 35.101, 129.0);
+        PlanningPlace dayTwo = store("2일차", 35.200, 129.0);
+        PlanningPlace nearDayTwo = store("2일차 근처", 35.201, 129.0);
 
         List<TimelineScheduler.Stop> ordered = RouteOptimizer.optimize(List.of(
                 new TimelineScheduler.Stop(nearDayTwo, null),
@@ -164,7 +134,7 @@ class TimelineSchedulerTests {
                 new TimelineScheduler.Stop(dayOneB, DAY1)), DAY1);
 
         assertEquals(List.of("1일차 A", "1일차 B", "2일차", "2일차 근처"),
-                ordered.stream().map(stop -> stop.store().getDestinationName()).toList());
+                ordered.stream().map(stop -> stop.place().id()).toList());
         List<TimelineScheduler.PlannedItem> plan = TimelineScheduler.schedule(ordered,
                 settings(DAY1.plusDays(1), "09:00", "21:00"), true).orElseThrow();
         assertEquals(DAY1.plusDays(1), plan.get(plan.size() - 1).date());

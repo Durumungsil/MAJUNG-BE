@@ -1,8 +1,7 @@
 package durumungsil.majung.domain.story.service;
 
 import durumungsil.majung.domain.preference.entity.TravelCategory;
-import durumungsil.majung.domain.store.entity.OpeningHour;
-import durumungsil.majung.domain.store.entity.Store;
+import durumungsil.majung.domain.place.PlanningPlace;
 import durumungsil.majung.global.ai.GeminiClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -124,7 +123,7 @@ public class TimelinePlanner {
             }
             Optional<List<TimelineScheduler.Stop>> ordered = parse(answer.get(), stops, settings);
             if (ordered.isEmpty()) {
-                log.warn("AI 타임라인 응답이 조건에 맞지 않아 규칙 기반으로 생성합니다: {}", abbreviate(answer.get()));
+                log.warn("AI 타임라인 응답이 조건에 맞지 않아 규칙 기반으로 생성합니다.");
                 return Optional.empty();
             }
             Optional<List<TimelineScheduler.PlannedItem>> planned = TimelineScheduler.schedule(ordered.get(), settings);
@@ -133,7 +132,7 @@ public class TimelinePlanner {
             }
             return planned;
         } catch (RuntimeException e) {
-            log.warn("AI 타임라인 생성 중 오류가 나서 규칙 기반으로 생성합니다: {}", e.toString());
+            log.warn("AI 타임라인 생성 오류로 규칙 기반으로 생성합니다 (type={})", e.getClass().getSimpleName());
             return Optional.empty();
         }
     }
@@ -145,26 +144,17 @@ public class TimelinePlanner {
         List<Map<String, Object>> places = new ArrayList<>();
         for (int i = 0; i < stops.size(); i++) {
             TimelineScheduler.Stop stop = stops.get(i);
-            Store store = stop.store();
+            PlanningPlace placeData = stop.place();
             Map<String, Object> place = new LinkedHashMap<>();
             place.put("stop_id", i);
-            place.put("name", store.getDestinationName());
-            TravelCategory category = DestinationCategories.of(store.getDestinationType());
+            place.put("place_id", placeData.id());
+            TravelCategory category = placeData.category();
             place.put("category", category == null ? "OTHER" : category.name());
-            place.put("latitude", store.getLatitude());
-            place.put("longitude", store.getLongitude());
             place.put("fixed_date", stop.fixedDate() == null ? null : stop.fixedDate().toString());
             place.put("default_stay_minutes", stop.stayOrDefault());
-            List<Map<String, String>> hours = new ArrayList<>();
-            for (OpeningHour hour : store.getOpeningHours()) {
-                hours.add(Map.of("day_of_week", hour.getDayOfWeek().name(),
-                        "open", hour.getOpenTime().toString(),
-                        "close", hour.getCloseTime().toString()));
-            }
-            place.put("opening_hours", hours);
             List<Double> distances = new ArrayList<>();
             for (TimelineScheduler.Stop other : stops) {
-                int route = TravelTimeEstimator.routeMeters(RouteOptimizer.meters(store, other.store()));
+                int route = TravelTimeEstimator.routeMeters(RouteOptimizer.meters(placeData, other.place()));
                 distances.add(Math.round(route / 100.0) / 10.0);
             }
             place.put("distances_km", distances);
@@ -195,7 +185,7 @@ public class TimelinePlanner {
                 4. 이동 거리가 가장 중요해. places[i].distances_km[j] 는 stop_id i 에서 j 까지 이동 거리(km)야.
                    같은 날 이어서 방문하는 두 장소 사이 거리는 max_move_km(교통수단 transport_type 으로 무리 없이 갈 수 있는 거리) 이하여야 해.
                    그보다 먼 장소는 다른 날로 나눠. 하루 안에서는 이동 거리 합이 가장 짧은 순서로 정해.
-                5. opening_hours 가 있으면 그 시간에 방문할 수 있는 순서로 정해. 비어 있으면 언제든 방문 가능하다고 봐.
+                5. 영업시간 정보는 제공하지 않는다. 이름이나 주소를 추측하지 마.
                 6. 하루 일정은 day_start_time 부터 day_end_time 까지야. 체류 시간과 이동 시간을 더해 이 안에 들어가게 날짜를 나눠.
                 7. stay_minutes 는 30~240 사이로 정해. 모르면 default_stay_minutes 를 써.
                 8. note 에는 그 장소에서 할 일을 한국어 한 문장(40자 이내)으로 써. 방문 시각은 서버가 정하니
@@ -270,7 +260,7 @@ public class TimelinePlanner {
                 }
                 used[index] = true;
                 usedCount++;
-                dayStops.add(new TimelineScheduler.Stop(original.store(), date,
+                dayStops.add(new TimelineScheduler.Stop(original.place(), date,
                         stayMinutes(visit.path("stay_minutes"), original), note(visit.path("note"))));
             }
         }

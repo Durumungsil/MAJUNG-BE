@@ -13,11 +13,11 @@ public interface DestinationSelectionRepository extends JpaRepository<Destinatio
     /** 여행 회차의 선택 여행지 (방문일, 방문 순서 순) */
     @Query("""
             select d from DestinationSelection d
-            join fetch d.store
+            join fetch d.googlePlace
             where d.trip.id = :tripId
             order by d.visitDate asc, d.visitOrder asc
             """)
-    List<DestinationSelection> findAllByTripIdWithStore(@Param("tripId") Long tripId);
+    List<DestinationSelection> findAllByTripIdWithPlace(@Param("tripId") Long tripId);
 
     /** 선택 저장(PUT) 시 기존 선택을 통째로 지운다 */
     @Modifying(flushAutomatically = true)

@@ -1,7 +1,8 @@
 package durumungsil.majung.domain.story.entity;
 
 import durumungsil.majung.domain.trip.entity.Trip;
-import durumungsil.majung.domain.store.entity.Store;
+import durumungsil.majung.domain.place.entity.GooglePlace;
+import durumungsil.majung.domain.preference.entity.TravelCategory;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -34,8 +35,11 @@ public class DestinationSelection {
     private Trip trip;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "store_id")
-    private Store store;
+    @JoinColumn(name = "google_place_id")
+    private GooglePlace googlePlace;
+
+    @Enumerated(EnumType.STRING)
+    private TravelCategory category;
 
     @Column(name = "visit_order")
     private Integer visitOrder;
@@ -48,9 +52,10 @@ public class DestinationSelection {
     private LocalDateTime selectedAt;
 
     @Builder
-    private DestinationSelection(Trip trip, Store store, Integer visitOrder, LocalDate visitDate) {
+    private DestinationSelection(Trip trip, GooglePlace googlePlace, TravelCategory category, Integer visitOrder, LocalDate visitDate) {
         this.trip = trip;
-        this.store = store;
+        this.googlePlace = googlePlace;
+        this.category = category == null ? TravelCategory.SIGHTSEEING : category;
         this.visitOrder = visitOrder;
         this.visitDate = visitDate;
     }

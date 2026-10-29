@@ -2,7 +2,7 @@ package durumungsil.majung.domain.story.service;
 
 import durumungsil.majung.domain.story.entity.ItineraryItemType;
 import durumungsil.majung.domain.preference.entity.TransportType;
-import durumungsil.majung.domain.store.entity.Store;
+import durumungsil.majung.domain.place.PlanningPlace;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -40,14 +40,14 @@ public final class TimelineScheduler {
      * @param stayMinutes 체류 시간(분). 없으면 업종별 기본값
      * @param note        VISIT 항목의 메모로 저장할 한 줄 설명 (AI 가 채운다)
      */
-    public record Stop(Store store, LocalDate fixedDate, Integer stayMinutes, String note) {
+    public record Stop(PlanningPlace place, LocalDate fixedDate, Integer stayMinutes, String note) {
 
-        public Stop(Store store, LocalDate fixedDate) {
-            this(store, fixedDate, null, null);
+        public Stop(PlanningPlace place, LocalDate fixedDate) {
+            this(place, fixedDate, null, null);
         }
 
         public int stayOrDefault() {
-            return stayMinutes != null ? stayMinutes : DestinationCategories.defaultStayMinutes(store.getDestinationType());
+            return stayMinutes != null ? stayMinutes : place.defaultStayMinutes();
         }
     }
 
@@ -56,7 +56,7 @@ public final class TimelineScheduler {
     }
 
     /** 배치 결과 한 줄. VISIT 은 store·시각·체류 시간·메모, MOVE 는 소요 시간·거리만 채운다 */
-    public record PlannedItem(int day, LocalDate date, int sequence, ItineraryItemType type, Store store,
+    public record PlannedItem(int day, LocalDate date, int sequence, ItineraryItemType type, PlanningPlace place,
                               LocalTime startAt, LocalTime endAt, Integer stayMinutes,
                               Integer durationMinutes, Integer distanceMeters, String memo) {
     }
@@ -78,7 +78,7 @@ public final class TimelineScheduler {
 
         LocalDate date = settings.startDate();
         int cursor = dayStart;
-        Store previous = null;
+        PlanningPlace previous = null;
         int sequence = 0;
 
         for (Stop stop : stops) {
@@ -97,7 +97,7 @@ public final class TimelineScheduler {
 
             if (splitLongMoves && previous != null && fixedDate == null && date.isBefore(settings.endDate())
                     && TransportRange.isLongDistance(settings.transportType(), TravelTimeEstimator.routeMeters(
-                    RouteOptimizer.meters(previous, stop.store())))) {
+                    RouteOptimizer.meters(previous, stop.place())))) {
                 // 먼 장소는 이동 대신 다음 날 첫 방문으로
                 date = date.plusDays(1);
                 cursor = dayStart;
@@ -113,11 +113,11 @@ public final class TimelineScheduler {
                         planned.add(new PlannedItem(day, date, ++sequence, ItineraryItemType.MOVE, null,
                                 null, null, null, placement.moveMinutes(), placement.moveMeters(), null));
                     }
-                    planned.add(new PlannedItem(day, date, ++sequence, ItineraryItemType.VISIT, stop.store(),
+                    planned.add(new PlannedItem(day, date, ++sequence, ItineraryItemType.VISIT, stop.place(),
                             toTime(placement.start()), toTime(placement.end()),
                             placement.end() - placement.start(), null, null, stop.note()));
                     cursor = placement.end();
-                    previous = stop.store();
+                    previous = stop.place();
                     break;
                 }
                 // 이 날에는 배치할 수 없다 -> 방문일이 정해져 있거나 마지막 날이면 실패, 아니면 다음 날로
@@ -137,44 +137,36 @@ public final class TimelineScheduler {
      * 체류 시간 내내 영업 중인지. 영업 시간 정보가 없으면 판단할 수 없으므로 true.
      * 시작·종료는 자정 기준 분(0 ~ 1440)이다.
      */
-    public static boolean isOpenThroughout(Store store, LocalDate date, int startMinutes, int endMinutes) {
-        if (store.getOpeningHours().isEmpty()) {
-            return true;
-        }
-        for (int minute = startMinutes; minute < endMinutes; minute += SLOT_MINUTES) {
-            if (!isOpenAt(store, date, minute)) {
-                return false;
-            }
-        }
-        return isOpenAt(store, date, endMinutes - 1);
+    public static boolean isOpenThroughout(PlanningPlace place, LocalDate date, int startMinutes, int endMinutes) {
+        return true; // Places 영업시간은 요청·저장하지 않는다.
     }
 
     public static int toMinutes(LocalTime time) {
         return time.getHour() * 60 + time.getMinute();
     }
 
-    private static Placement place(Stop stop, Store previous, LocalDate date, int cursor, int dayEnd,
+    private static Placement place(Stop stop, PlanningPlace previous, LocalDate date, int cursor, int dayEnd,
                                    TransportType transportType) {
-        Store store = stop.store();
+        PlanningPlace place = stop.place();
         int stay = stop.stayOrDefault();
         int moveMeters = 0;
         int moveMinutes = 0;
         if (previous != null) {
             moveMeters = TravelTimeEstimator.routeMeters(
-                    store.distanceMetersFrom(previous.getLatitude(), previous.getLongitude()));
+                    place.distanceMetersFrom(previous.latitude(), previous.longitude()));
             moveMinutes = TravelTimeEstimator.minutes(transportType, moveMeters);
         }
         for (int start = cursor + moveMinutes; start + stay <= dayEnd; start += SLOT_MINUTES) {
-            if (isOpenThroughout(store, date, start, start + stay)) {
+            if (isOpenThroughout(place, date, start, start + stay)) {
                 return new Placement(start, start + stay, moveMinutes, moveMeters);
             }
         }
         return null;
     }
 
-    private static boolean isOpenAt(Store store, LocalDate date, int minute) {
+    private static boolean isOpenAt(PlanningPlace place, LocalDate date, int minute) {
         LocalDateTime at = date.atStartOfDay().plusMinutes(minute);
-        return Boolean.TRUE.equals(store.isOpenAt(at));
+        return true;
     }
 
     private static LocalTime toTime(int minutes) {

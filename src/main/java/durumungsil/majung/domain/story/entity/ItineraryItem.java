@@ -1,6 +1,6 @@
 package durumungsil.majung.domain.story.entity;
 
-import durumungsil.majung.domain.store.entity.Store;
+import durumungsil.majung.domain.place.entity.GooglePlace;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -48,8 +48,8 @@ public class ItineraryItem {
 
     /** VISIT 만 사용. MOVE 는 null */
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
-    @JoinColumn(name = "store_id", nullable = true)
-    private Store store;
+    @JoinColumn(name = "google_place_id", nullable = true)
+    private GooglePlace googlePlace;
 
     @Column(name = "start_at")
     private LocalTime startAt;
@@ -70,14 +70,14 @@ public class ItineraryItem {
 
     @Builder
     private ItineraryItem(Itinerary itinerary, Integer day, LocalDate date, Integer sequence, ItineraryItemType type,
-                          Store store, LocalTime startAt, LocalTime endAt, Integer stayMinutes,
+                          GooglePlace googlePlace, LocalTime startAt, LocalTime endAt, Integer stayMinutes,
                           Integer durationMinutes, Integer distanceMeters, String memo) {
         this.itinerary = itinerary;
         this.day = day;
         this.date = date;
         this.sequence = sequence;
         this.type = type;
-        this.store = store;
+        this.googlePlace = googlePlace;
         this.startAt = startAt;
         this.endAt = endAt;
         this.stayMinutes = stayMinutes;

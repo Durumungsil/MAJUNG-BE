@@ -3,8 +3,7 @@ package durumungsil.majung;
 import durumungsil.majung.domain.story.entity.ItineraryItemType;
 import durumungsil.majung.domain.preference.entity.TransportType;
 import durumungsil.majung.domain.preference.entity.TravelCategory;
-import durumungsil.majung.domain.store.entity.Store;
-import durumungsil.majung.domain.store.entity.Type;
+import durumungsil.majung.domain.place.PlanningPlace;
 import durumungsil.majung.global.ai.GeminiClient;
 import durumungsil.majung.domain.story.service.TimelinePlanner;
 import durumungsil.majung.domain.story.service.TimelineScheduler;
@@ -28,17 +27,16 @@ class TimelinePlannerTests {
     static final TimelineScheduler.Settings SETTINGS = new TimelineScheduler.Settings(DAY1, DAY1.plusDays(1),
             TransportType.WALK, LocalTime.of(9, 0), LocalTime.of(21, 0));
 
-    final Store museum = place("박물관", Type.ART_SPORTS, 35.100);
-    final Store market = place("시장", Type.RETAIL, 35.101);
-    final Store restaurant = place("식당", Type.FOOD, 35.102);
+    final PlanningPlace museum = place("박물관", TravelCategory.CULTURE, 35.100);
+    final PlanningPlace market = place("시장", TravelCategory.SHOPPING, 35.101);
+    final PlanningPlace restaurant = place("식당", TravelCategory.FOOD, 35.102);
     final List<TimelineScheduler.Stop> stops = List.of(
             new TimelineScheduler.Stop(museum, null),
             new TimelineScheduler.Stop(market, null),
             new TimelineScheduler.Stop(restaurant, null));
 
-    static Store place(String name, Type type, double latitude) {
-        return Store.builder().destinationName(name).destinationType(type)
-                .latitude(latitude).longitude(129.0).build();
+    static PlanningPlace place(String name, TravelCategory type, double latitude) {
+        return new PlanningPlace(name,latitude,129.0,type);
     }
 
     /** 고정된 답을 돌려주는 가짜 Gemini. 호출 횟수를 센다 */
@@ -46,6 +44,7 @@ class TimelinePlannerTests {
         final boolean enabled;
         final String answer;
         final AtomicInteger calls = new AtomicInteger();
+        String lastPrompt;
 
         FakeGemini(boolean enabled, String answer) {
             this.enabled = enabled;
@@ -59,6 +58,7 @@ class TimelinePlannerTests {
 
         @Override
         public Optional<String> generateJson(String prompt, Map<String, Object> responseSchema) {
+            lastPrompt=prompt;
             calls.incrementAndGet();
             return Optional.ofNullable(answer);
         }
@@ -73,7 +73,7 @@ class TimelinePlannerTests {
     static List<String> visitNames(TimelinePlanner.Result result) {
         return result.items().stream()
                 .filter(item -> item.type() == ItineraryItemType.VISIT)
-                .map(item -> item.store().getDestinationName())
+                .map(item -> item.place().id())
                 .toList();
     }
 
@@ -89,6 +89,8 @@ class TimelinePlannerTests {
 
         TimelinePlanner.Result result = plan(gemini, stops);
 
+        assertFalse(gemini.lastPrompt.contains("\"name\""));
+        assertFalse(gemini.lastPrompt.contains("\"latitude\""));
         assertEquals(TimelinePlanner.GENERATED_BY_AI, result.generatedBy());
         assertEquals(List.of("식당", "박물관", "시장"), visitNames(result));
         TimelineScheduler.PlannedItem first = result.items().get(0);
@@ -193,10 +195,10 @@ class TimelinePlannerTests {
     @Test
     void aiPlanWithLongerRouteThanRulesFallsBackToRules() {
         // 가까운 둘(35.100, 35.101)과 약 5.6km 떨어진 둘(35.150, 35.151). 도보 적정 거리 2km
-        Store a = place("A", Type.ART_SPORTS, 35.100);
-        Store b = place("B", Type.ART_SPORTS, 35.150);
-        Store c = place("C", Type.ART_SPORTS, 35.101);
-        Store d = place("D", Type.ART_SPORTS, 35.151);
+        PlanningPlace a = place("A", TravelCategory.CULTURE, 35.100);
+        PlanningPlace b = place("B", TravelCategory.CULTURE, 35.150);
+        PlanningPlace c = place("C", TravelCategory.CULTURE, 35.101);
+        PlanningPlace d = place("D", TravelCategory.CULTURE, 35.151);
         List<TimelineScheduler.Stop> scattered = List.of(
                 new TimelineScheduler.Stop(a, null), new TimelineScheduler.Stop(b, null),
                 new TimelineScheduler.Stop(c, null), new TimelineScheduler.Stop(d, null));
