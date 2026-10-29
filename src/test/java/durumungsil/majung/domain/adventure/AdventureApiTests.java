@@ -56,10 +56,10 @@ class AdventureApiTests {
 
     @BeforeEach
     void setup() {
-        for (String table : List.of("itinerary_items", "itineraries", "destination_selections",
+        for (String table : List.of("mission_rejected_places", "preference_profile", "roulette_results", "itinerary_items", "itineraries", "destination_selections",
                 "missions", "adventure_processes", "preference_foods", "preference_transport_types",
                 "preferences", "trip_constraints", "group_members", "trips", "groups", "users",
-                "store_opening_hours", "store_amenities", "stores")) {
+                "store_opening_hours", "store_amenities", "store_safety_categories", "stores")) {
             jdbc.update("delete from " + table);
         }
         when(settings.today()).thenReturn(DATE);
@@ -98,7 +98,7 @@ class AdventureApiTests {
                 .content(position())).andExpect(status().isConflict());
 
         mvc.perform(post(base() + "/missions/" + first + "/start").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"latitude\":91,\"longitude\":129}")).andExpect(status().isBadRequest());
+                .content("{\"latitude\":91,\"longitude\":129,\"accuracy_meters\":5}")).andExpect(status().isBadRequest());
         String firstStarted = start(first).path("started_at").asString();
         when(settings.nowUtc()).thenReturn(START.plusMinutes(1));
         JsonNode restarted = data(mvc.perform(post(base() + "/missions/" + first + "/start")
@@ -116,7 +116,7 @@ class AdventureApiTests {
                 .andExpect(jsonPath("$.error_code").value("400"));
         assertEquals("AVAILABLE", jdbc.queryForObject("select status from missions where id = ?", String.class, first));
         mvc.perform(post(base() + "/missions/" + first + "/complete").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"latitude\":35,\"longitude\":129,\"completed_at\":\"2099-01-01T00:00:00Z\"}"))
+                .content("{\"latitude\":35,\"longitude\":129,\"accuracy_meters\":5,\"completed_at\":\"2099-01-01T00:00:00Z\"}"))
                 .andExpect(status().isBadRequest());
         JsonNode completed = complete(first);
         assertEquals(second, completed.path("next_mission_id").asLong());
@@ -211,7 +211,7 @@ class AdventureApiTests {
         start(mission);
         when(settings.nowUtc()).thenReturn(START.plusMinutes(10));
         mvc.perform(post(base() + "/missions/" + mission + "/complete").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"latitude\":35,\"longitude\":129,\"completed_at\":\"2026-10-19T01:01:00Z\"}"))
+                .content("{\"latitude\":35,\"longitude\":129,\"accuracy_meters\":5,\"completed_at\":\"2026-10-19T01:01:00Z\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.completed_at").value("2026-10-19T01:10:00Z"));
         assertEquals("C", jdbc.queryForObject("select clear_rank from missions where id = ?", String.class, mission));
@@ -243,15 +243,60 @@ class AdventureApiTests {
             for (Future<AdventureDtos.Hint> hint : pool.invokeAll(hints)) { hint.get(10, TimeUnit.SECONDS); }
             assertEquals(12, jdbc.queryForObject("select hint_count from missions where id = ?", Integer.class, mission));
             start(mission);
+            when(settings.nowUtc()).thenReturn(START.plusSeconds(30));
             List<Callable<Integer>> completions = List.of(() -> completeStatus(mission), () -> completeStatus(mission));
             List<Future<Integer>> results = pool.invokeAll(completions);
             assertEquals(List.of(200, 409), List.of(results.get(0).get(), results.get(1).get()).stream().sorted().toList());
         }
     }
 
+    @Test
+    void distanceRequiresHintAndReplacementResetsStartWithoutReusingRejectedPlaces() throws Exception {
+        long mission = create(2).path("first_mission_id").asLong();
+        String path = base() + "/missions/" + mission;
+        mvc.perform(post(path + "/distance").contentType(MediaType.APPLICATION_JSON).content(position()))
+                .andExpect(status().isConflict());
+        mvc.perform(post(path + "/replace").contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"ROADVIEW_UNAVAILABLE\"}"))
+                .andExpect(status().isConflict());
+        start(mission);
+        java.util.Set<Long> seen = new java.util.HashSet<>();
+        seen.add(jdbc.queryForObject("select store_id from missions where id = ?", Long.class, mission));
+        for (int i = 0; i < 3; i++) {
+            mvc.perform(get(path + "/hint")).andExpect(status().isOk());
+            mvc.perform(post(path + "/distance").contentType(MediaType.APPLICATION_JSON).content(position()))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.distance_meters").value(0));
+            mvc.perform(post(path + "/replace").contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"ROADVIEW_UNAVAILABLE\"}"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.hint_count").value(0))
+                    .andExpect(jsonPath("$.data.started_at").value(org.hamcrest.Matchers.nullValue()));
+            assertTrue(seen.add(jdbc.queryForObject("select store_id from missions where id = ?", Long.class, mission)));
+        }
+        mvc.perform(post(path + "/complete").contentType(MediaType.APPLICATION_JSON).content(position()))
+                .andExpect(status().isConflict());
+        mvc.perform(get(path + "/hint")).andExpect(status().isOk());
+        mvc.perform(post(path + "/replace").contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"ROADVIEW_UNAVAILABLE\"}"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void completionRejectsPoorAccuracyInstantArrivalAndImpossibleWalkingSpeed() throws Exception {
+        long mission = create(1).path("first_mission_id").asLong();
+        String path = base() + "/missions/" + mission;
+        mvc.perform(post(path + "/start").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"latitude\":36,\"longitude\":129}")).andExpect(status().isOk());
+        mvc.perform(post(path + "/complete").contentType(MediaType.APPLICATION_JSON).content(position()))
+                .andExpect(status().isBadRequest());
+        when(settings.nowUtc()).thenReturn(START.plusSeconds(30));
+        for (String body : List.of("{\"latitude\":35,\"longitude\":129}",
+                "{\"latitude\":35,\"longitude\":129,\"accuracy_meters\":100}", position())) {
+            mvc.perform(post(path + "/complete").contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest());
+        }
+        assertEquals("AVAILABLE", jdbc.queryForObject("select status from missions where id=?", String.class, mission));
+    }
+
     private int completeStatus(long mission) {
         try {
-            service.complete(groupId, mission, new AdventureDtos.CompleteRequest(35.0, 129.0, null));
+            service.complete(groupId, mission, new AdventureDtos.CompleteRequest(35.0, 129.0, 5.0, null));
             return 200;
         } catch (BusinessException ex) { return ex.getErrorCode().getStatus().value(); }
     }
@@ -267,7 +312,7 @@ class AdventureApiTests {
                     .travelStartDate(DATE).travelEndDate(DATE.plusDays(1)).build();
             em.persist(trip);
             em.persist(Preference.builder().trip(trip).user(user).allergies("[]").budgetMax(60_000).build());
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 7; i++) {
                 em.persist(Store.builder().destinationName("정답" + i).destinationType(Type.ART_SPORTS)
                         .sido("부산광역시").latitude(35.0).longitude(129.0).build());
             }
@@ -277,7 +322,7 @@ class AdventureApiTests {
     }
 
     private String base() { return "/api/v1/groups/" + groupId; }
-    private String position() { return "{\"latitude\":35,\"longitude\":129}"; }
+    private String position() { return "{\"latitude\":35,\"longitude\":129,\"accuracy_meters\":5}"; }
     private String createBody(int count) { return "{\"travel_date\":\"2026-10-19\",\"mission_count\":" + count + "}"; }
     private JsonNode create(int count) throws Exception {
         return data(mvc.perform(post(base() + "/adventure/process").contentType(MediaType.APPLICATION_JSON)
@@ -288,6 +333,8 @@ class AdventureApiTests {
                 .content(position())).andExpect(status().isOk()).andReturn());
     }
     private JsonNode complete(long mission) throws Exception {
+        var completedAt = settings.nowUtc().plusSeconds(30);
+        when(settings.nowUtc()).thenReturn(completedAt);
         return data(mvc.perform(post(base() + "/missions/" + mission + "/complete").contentType(MediaType.APPLICATION_JSON)
                 .content(position())).andExpect(status().isOk()).andReturn());
     }

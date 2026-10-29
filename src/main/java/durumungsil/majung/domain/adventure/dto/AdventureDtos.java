@@ -14,7 +14,12 @@ public final class AdventureDtos {
     public record CreateRequest(@JsonProperty("travel_date") LocalDate travelDate,
                                 @JsonProperty("mission_count") Integer missionCount) { }
     public record StartRequest(Double latitude, Double longitude) { }
+    public record DistanceRequest(Double latitude, Double longitude) { }
+    public record DistanceResponse(@JsonProperty("distance_meters") double distanceMeters) { }
+    public enum ReplacementReason { ROADVIEW_UNAVAILABLE }
+    public record ReplaceRequest(ReplacementReason reason) { }
     public record CompleteRequest(Double latitude, Double longitude,
+                                  @JsonProperty("accuracy_meters") Double accuracyMeters,
                                   @JsonProperty("completed_at") Instant completedAt) { }
     public record Created(@JsonProperty("process_id") Long processId,
                           @JsonProperty("group_id") Long groupId, AdventureStatus status,

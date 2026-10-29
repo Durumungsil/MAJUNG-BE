@@ -79,15 +79,18 @@ class AdventureAuthIntegrationTests {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.missions[0].mission_id").value(mission));
         String missionPath = base + "/missions/" + mission;
         mvc.perform(post(missionPath + "/complete").header("Authorization", ownerToken)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"latitude\":35,\"longitude\":129}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"latitude\":35,\"longitude\":129,\"accuracy_meters\":5}"))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.error_code").value("409"));
         mvc.perform(post(missionPath + "/start").header("Authorization", ownerToken)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"latitude\":35,\"longitude\":129}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"latitude\":35,\"longitude\":129,\"accuracy_meters\":5}"))
                 .andExpect(status().isOk());
+        tx.executeWithoutResult(status -> em.createQuery("update Mission m set m.startedAt = :time where m.id = :id")
+                .setParameter("time", java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusSeconds(30))
+                .setParameter("id", mission).executeUpdate());
         mvc.perform(get(missionPath + "/hint").header("Authorization", ownerToken))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.hint_count").value(1));
         mvc.perform(post(missionPath + "/complete").header("Authorization", ownerToken)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"latitude\":35,\"longitude\":129}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"latitude\":35,\"longitude\":129,\"accuracy_meters\":5}"))
                 .andExpect(status().isOk());
         mvc.perform(get(base + "/adventure/process/" + process).header("Authorization", ownerToken))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.missions[0].completed_at").exists());

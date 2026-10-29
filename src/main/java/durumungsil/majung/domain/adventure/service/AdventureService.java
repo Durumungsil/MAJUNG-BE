@@ -102,6 +102,32 @@ public class AdventureService {
                 settings.hintViewSeconds(), mission.getHintCount());
     }
 
+    public DistanceResponse distance(Long groupId, Long missionId, DistanceRequest request) {
+        GeoUtils.validate(request.latitude(), request.longitude());
+        Mission mission = availableMission(groupId, missionId);
+        if (mission.getHintCount() < 1) throw new BusinessException(ErrorCode.MISSION_HINT_REQUIRED);
+        return new DistanceResponse(Math.round(mission.getStore().distanceMetersFrom(request.latitude(), request.longitude())));
+    }
+
+    public CurrentMission replace(Long groupId, Long missionId, ReplaceRequest request) {
+        if (request.reason() != ReplacementReason.ROADVIEW_UNAVAILABLE)
+            throw new IllegalArgumentException("교체 사유는 ROADVIEW_UNAVAILABLE이어야 합니다.");
+        Mission mission = availableMission(groupId, missionId);
+        if (mission.getHintCount() < 1) throw new BusinessException(ErrorCode.MISSION_HINT_REQUIRED);
+        if (mission.getRejectedPlaceIds().size() >= 3) throw new BusinessException(ErrorCode.MISSION_REPLACEMENT_LIMIT);
+        var all = missions.findByProcessIdOrderByMissionOrderAsc(mission.getProcess().getId());
+        java.util.Set<Long> excluded = new java.util.HashSet<>();
+        all.forEach(item -> { excluded.add(item.getStore().getDestinationId()); excluded.addAll(item.getRejectedPlaceIds()); });
+        Store previous = all.stream().filter(item -> item.getMissionOrder() == mission.getMissionOrder() - 1)
+                .map(Mission::getStore).findFirst().orElse(null);
+        Store next = all.stream().filter(item -> item.getMissionOrder() == mission.getMissionOrder() + 1)
+                .map(Mission::getStore).findFirst().orElse(null);
+        Store replacement = selector.replacement(mission.getProcess().getTrip(), excluded, previous, next);
+        mission.replaceDestination(replacement);
+        return new CurrentMission(mission.getId(), mission.getMissionOrder(), mission.getStatus(), mission.getTitle(),
+                mission.getObjective(), mission.getHintCount(), null);
+    }
+
     public Completed complete(Long groupId, Long missionId, CompleteRequest request) {
         GeoUtils.validate(request.latitude(), request.longitude());
         Mission mission = availableMission(groupId, missionId);
@@ -114,6 +140,16 @@ public class AdventureService {
         if (mission.getStore().distanceMetersFrom(request.latitude(), request.longitude()) > settings.arrivalRadiusMeters()) {
             throw new IllegalArgumentException("현재 위치가 미션 목적지와 충분히 가깝지 않습니다.");
         }
+        Double accuracy = request.accuracyMeters();
+        if (accuracy == null || !Double.isFinite(accuracy) || accuracy <= 0 || accuracy > 50)
+            throw new IllegalArgumentException("위치 정확도는 0 초과 50m 이하여야 합니다.");
+        if (mission.getStore().distanceMetersFrom(request.latitude(), request.longitude()) + accuracy > settings.arrivalRadiusMeters())
+            throw new IllegalArgumentException("오차 범위를 포함한 현재 위치가 도착 반경 안이어야 합니다.");
+        double elapsedSeconds = java.time.Duration.between(mission.getStartedAt(), now).toMillis() / 1000.0;
+        double traveled = GeoUtils.distanceMeters(mission.getStartLatitude(), mission.getStartLongitude(),
+                request.latitude(), request.longitude());
+        if (elapsedSeconds < 15 || Math.max(0, traveled - accuracy - settings.arrivalRadiusMeters()) > elapsedSeconds * 3.0)
+            throw new IllegalArgumentException("이동 시간 또는 속도가 도보 미션 조건에 맞지 않습니다.");
         // 랭크와 완료 시각은 클라이언트가 바꿀 수 없도록 서버 시각으로 계산한다.
         mission.complete(now);
         List<Mission> all = missions.findByProcessIdOrderByMissionOrderAsc(mission.getProcess().getId());

@@ -15,7 +15,7 @@ import java.util.Set;
 
 /**
  * 장소(여행지·식당 등) 테이블.
- * 장소 상세조회 / 주변 장소 탐색 / 여행지 추천 / 룰렛 / 타임라인 / 미션에서 공통으로 참조한다.
+ * 모험 미션에서 참조한다. 스토리·극한은 GooglePlace를 사용한다.
  * 기본 정보는 소상공인시장진흥공단 상가 데이터(scripts/preprocess_busan_stores.py)에서 적재하고,
  * 평점·전화번호·영업시간·편의시설은 외부 장소 데이터와 동기화해서 채운다(없으면 null/빈 값).
  */
@@ -42,6 +42,12 @@ public class Store {
     /** 명세의 장소 세부 분류 코드 (예: KOREAN, CULTURE). 미보강 데이터는 null. */
     @Column(name = "place_category", length = 50)
     private String placeCategory;
+
+    @Column(name = "industry_small_code", length = 20)
+    private String industrySmallCode;
+
+    @Column(name = "industry_small_name", length = 100)
+    private String industrySmallName;
 
     /** 안전 조건 코드 (예: EXTREME_HEIGHT). 장소 데이터 보강 시 함께 적재한다. */
     @ElementCollection(fetch = FetchType.LAZY)
@@ -104,7 +110,7 @@ public class Store {
     private Store(String destinationName, Type destinationType, Double latitude, Double longitude,
                   String sido, String sigungu, String address, String branch, Double rating, Integer pricePerPerson,
                   String phone, List<OpeningHour> openingHours, Set<String> amenities,
-                  LocalDateTime lastSyncedAt, String placeCategory, Set<String> safetyCategories) {
+                  LocalDateTime lastSyncedAt, String placeCategory, Set<String> safetyCategories, String industrySmallCode, String industrySmallName) {
         GeoUtils.validate(latitude, longitude);
         this.destinationName = destinationName;
         this.destinationType = destinationType;
@@ -125,6 +131,8 @@ public class Store {
         }
         this.lastSyncedAt = lastSyncedAt;
         changeClassification(placeCategory, safetyCategories);
+        this.industrySmallCode = industrySmallCode;
+        this.industrySmallName = industrySmallName;
     }
 
     public void changeClassification(String placeCategory, Set<String> safetyCategories) {

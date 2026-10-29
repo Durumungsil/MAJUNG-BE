@@ -41,6 +41,18 @@ public class AdventureController {
         return ApiResponse.success("힌트를 제공했습니다.", service.hint(groupId, missionId));
     }
 
+    @PostMapping("/missions/{missionId}/distance")
+    public ApiResponse<DistanceResponse> distance(@PathVariable Long groupId, @PathVariable Long missionId,
+                                                  @RequestBody DistanceRequest request) {
+        return ApiResponse.success("목적지까지 거리를 조회했습니다.", service.distance(groupId, missionId, request));
+    }
+
+    @PostMapping("/missions/{missionId}/replace")
+    public ApiResponse<CurrentMission> replace(@PathVariable Long groupId, @PathVariable Long missionId,
+                                               @RequestBody ReplaceRequest request) {
+        return ApiResponse.success("로드뷰가 없는 미션을 교체했습니다. 다시 시작해주세요.", service.replace(groupId, missionId, request));
+    }
+
     @PostMapping("/missions/{missionId}/complete")
     public ApiResponse<Completed> complete(@PathVariable Long groupId, @PathVariable Long missionId,
                                           @RequestBody CompleteRequest request) {

@@ -25,6 +25,8 @@ OUTPUT_FIELDS = (
     "sido",
     "sigungu",
     "address",
+    "industry_small_code",
+    "industry_small_name",
 )
 
 
@@ -70,6 +72,8 @@ def preprocess(source: Path, destination: Path) -> int:
                     "sido": clean(row.get("시도명")),
                     "sigungu": clean(row.get("시군구명")),
                     "address": required["도로명주소"],
+                    "industry_small_code": clean(row.get("상권업종소분류코드")),
+                    "industry_small_name": clean(row.get("상권업종소분류명")),
                 }
             )
             count += 1

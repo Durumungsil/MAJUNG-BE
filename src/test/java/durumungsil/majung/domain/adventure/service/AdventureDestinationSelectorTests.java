@@ -60,7 +60,7 @@ class AdventureDestinationSelectorTests {
         assertEquals(2, selected.size());
         assertTrue(selected.containsAll(List.of(affordable, unknownPrice)));
         verify(stores).findInRegionsAndTypes(eq(List.of("BUSAN", "부산", "부산광역시")),
-                eq(EnumSet.allOf(Type.class)), eq(StoreRepository.regionCandidateLimit()));
+                eq(EnumSet.of(Type.RETAIL, Type.FOOD, Type.ART_SPORTS)), eq(StoreRepository.regionCandidateLimit()));
         assertThrows(BusinessException.class, () -> selector.select(trip, 3));
     }
 
@@ -74,7 +74,7 @@ class AdventureDestinationSelectorTests {
         when(stores.findInRegionsAndTypes(anyList(), anyCollection(), any(Pageable.class))).thenReturn(List.of(safe, store(Type.FOOD, null), store(Type.RETAIL, null)));
         assertEquals(List.of(safe), selector.select(trip, 1));
         Set<Type> expected = EnumSet.allOf(Type.class);
-        expected.removeAll(Set.of(Type.FOOD, Type.RETAIL));
+        expected.removeAll(Set.of(Type.LODGING, Type.SCIENCE_TECHNOLOGY, Type.RETAIL));
         verify(stores, atLeastOnce()).findInRegionsAndTypes(anyList(), eq(expected), any(Pageable.class));
         assertThrows(BusinessException.class, () -> selector.select(trip, 2));
     }
@@ -91,6 +91,30 @@ class AdventureDestinationSelectorTests {
         when(preferences.findAllOfCurrentMembers(2L, 1L)).thenReturn(List.of(
                 Preference.builder().allergies("invalid json").build()));
         assertThrows(BusinessException.class, () -> selector.select(trip, 1));
+    }
+
+    @Test
+    void keepsWalkingLegsShortAndExcludesLodgingAndTechnicalOffices() {
+        when(preferences.findAllOfCurrentMembers(2L, 1L)).thenReturn(List.of(Preference.builder().build()));
+        var near = List.of(store(Type.ART_SPORTS, null), store(Type.RETAIL, null));
+        var far = Store.builder().destinationType(Type.ART_SPORTS).latitude(37.0).longitude(129.0).build();
+        when(stores.findInRegionsAndTypes(anyList(), anyCollection(), any(Pageable.class)))
+                .thenReturn(List.of(near.get(0), near.get(1), far, store(Type.LODGING, null), store(Type.SCIENCE_TECHNOLOGY, null)));
+        assertEquals(2, selector.select(trip, 2).size());
+        assertThrows(BusinessException.class, () -> selector.select(trip, 3));
+    }
+
+    @Test
+    void mapsAllergiesToIndustrySubclassAndRejectsMissingClassification() {
+        var allergy = List.of(durumungsil.majung.domain.preference.profile.Allergy.SHELLFISH);
+        assertFalse(StoreAllergyFilter.allows(store(Type.FOOD, null), allergy));
+        var seafood = Store.builder().destinationType(Type.FOOD).latitude(35.0).longitude(129.0)
+                .industrySmallCode("I20112").industrySmallName("해산물 구이/찜 전문점").build();
+        var cafe = Store.builder().destinationType(Type.FOOD).latitude(35.0).longitude(129.0)
+                .industrySmallCode("I21201").industrySmallName("커피 전문점").build();
+        assertFalse(StoreAllergyFilter.allows(seafood, allergy));
+        assertTrue(StoreAllergyFilter.allows(cafe, allergy));
+        assertFalse(StoreAllergyFilter.allows(cafe, List.of(durumungsil.majung.domain.preference.profile.Allergy.MILK)));
     }
 
     private Store store(Type type, Integer price) {

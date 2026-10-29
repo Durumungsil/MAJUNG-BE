@@ -69,6 +69,23 @@ public class Mission {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @ElementCollection
+    @CollectionTable(name = "mission_rejected_places", joinColumns = @JoinColumn(name = "mission_id"))
+    @Column(name = "store_id", nullable = false)
+    private java.util.Set<Long> rejectedPlaceIds = new java.util.HashSet<>();
+
+    public void replaceDestination(Store replacement) {
+        if (status != MissionStatus.AVAILABLE || hintCount < 1 || rejectedPlaceIds.size() >= 3)
+            throw new IllegalStateException("힌트 확인 후 현재 미션을 최대 3회 교체할 수 있습니다.");
+        rejectedPlaceIds.add(store.getDestinationId());
+        store = replacement;
+        hintCount = 0;
+        startedAt = null;
+        startLatitude = null;
+        startLongitude = null;
+        routeType = null;
+    }
+
     @Builder
     private Mission(AdventureProcess process, Store store, Integer missionOrder,
                     MissionStatus status, String title, String objective) {
