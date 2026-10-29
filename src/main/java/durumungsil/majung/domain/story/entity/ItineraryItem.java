@@ -14,8 +14,8 @@ import java.time.LocalTime;
 /**
  * 타임라인 항목 수정 대상.
  * - 하루 안 순서는 sequence 로 정한다 (day, sequence 순으로 정렬).
- * - VISIT: store, start_at/end_at, stay_minutes 사용
- * - MOVE : store 는 비우고 duration_minutes, distance_meters 사용.
+ * - VISIT: googlePlace, start_at/end_at, stay_minutes 사용
+ * - MOVE : googlePlace 는 비우고 duration_minutes, distance_meters 사용.
  *          출발지 = 바로 앞(sequence - 1) VISIT, 도착지 = 바로 뒤(sequence + 1) VISIT
  */
 @Entity

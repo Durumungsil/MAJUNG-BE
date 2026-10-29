@@ -189,7 +189,7 @@ public class ItineraryService {
 
     /**
      * 배치할 장소 목록.
-     * destination_ids 를 보내면 방문일 없이, 안 보내면 저장한 여행지 선택을 방문일에 맞춰 배치한다.
+     * place_ids 를 보내면 방문일 없이, 안 보내면 저장한 여행지 선택을 방문일에 맞춰 배치한다.
      * 방문 순서는 플래너가 동선에 맞춰 다시 정한다 (받은 순서는 동률일 때만 쓴다).
      */
     private List<TimelineScheduler.Stop> loadStops(Trip trip, List<String> placeIds,

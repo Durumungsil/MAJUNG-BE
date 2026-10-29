@@ -17,7 +17,7 @@ import java.util.Optional;
  * AI 플래너({@link TimelinePlanner})가 정한 날짜·순서·체류 시간도 이 클래스로 시각을 계산하고 검증한다.
  * <ul>
  *   <li>장소를 받은 순서대로 하루 시작 시각부터 채운다. 장소 사이에는 MOVE 항목을 넣는다.</li>
- *   <li>체류 시간은 Stop 에 정해진 값(AI) 또는 업종별 기본값({@link DestinationCategories#defaultStayMinutes}), 이동 시간은
+ *   <li>체류 시간은 Stop 에 정해진 값(AI) 또는 업종별 기본값({@link PlanningPlace#defaultStayMinutes}), 이동 시간은
  *       {@link TravelTimeEstimator} 로 어림잡는다.</li>
  *   <li>영업 시간 정보가 있으면 체류 시간 내내 영업 중일 때만 배치하고, 아직 안 열었으면 열 때까지 기다린다.</li>
  *   <li>하루 종료 시각을 넘기면 다음 날로 넘긴다. 방문일이 정해진 장소는 그날에만 배치한다.</li>
