@@ -1,7 +1,9 @@
 package durumungsil.majung.domain.store.entity;
 
 import durumungsil.majung.global.util.GeoUtils;
+
 import jakarta.persistence.*;
+
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -14,16 +16,15 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 장소(여행지·식당 등) 테이블.
- * 모험 미션에서 참조한다. 스토리·극한은 GooglePlace를 사용한다.
- * 기본 정보는 소상공인시장진흥공단 상가 데이터(scripts/preprocess_busan_stores.py)에서 적재하고,
- * 평점·전화번호·영업시간·편의시설은 외부 장소 데이터와 동기화해서 채운다(없으면 null/빈 값).
+ * 장소(여행지·식당 등) 테이블. 모험 미션에서 참조한다. 스토리·극한은 GooglePlace를 사용한다. 기본 정보는 소상공인시장진흥공단 상가
+ * 데이터(scripts/preprocess_busan_stores.py)에서 적재하고, 평점·전화번호·영업시간·편의시설은 외부 장소 데이터와 동기화해서 채운다(없으면
+ * null/빈 값).
  */
 @Entity
 @Table(
         name = "stores",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"external_provider", "external_place_id"})
-)
+        uniqueConstraints =
+                @UniqueConstraint(columnNames = {"external_provider", "external_place_id"}))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Store {
@@ -51,7 +52,9 @@ public class Store {
 
     /** 안전 조건 코드 (예: EXTREME_HEIGHT). 장소 데이터 보강 시 함께 적재한다. */
     @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "store_safety_categories", joinColumns = @JoinColumn(name = "destination_id"),
+    @CollectionTable(
+            name = "store_safety_categories",
+            joinColumns = @JoinColumn(name = "destination_id"),
             uniqueConstraints = @UniqueConstraint(columnNames = {"destination_id", "category"}))
     @Column(name = "category", nullable = false, length = 50)
     private Set<String> safetyCategories = new HashSet<>();
@@ -88,8 +91,7 @@ public class Store {
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(
             name = "store_opening_hours",
-            joinColumns = @JoinColumn(name = "destination_id")
-    )
+            joinColumns = @JoinColumn(name = "destination_id"))
     private List<OpeningHour> openingHours = new ArrayList<>();
 
     /** 편의시설 (예: PARKING). store_amenities 테이블에 한 행씩 저장 */
@@ -97,8 +99,7 @@ public class Store {
     @CollectionTable(
             name = "store_amenities",
             joinColumns = @JoinColumn(name = "destination_id"),
-            uniqueConstraints = @UniqueConstraint(columnNames = {"destination_id", "amenity"})
-    )
+            uniqueConstraints = @UniqueConstraint(columnNames = {"destination_id", "amenity"}))
     @Column(name = "amenity", nullable = false)
     private Set<String> amenities = new HashSet<>();
 
@@ -107,10 +108,25 @@ public class Store {
     private LocalDateTime lastSyncedAt;
 
     @Builder
-    private Store(String destinationName, Type destinationType, Double latitude, Double longitude,
-                  String sido, String sigungu, String address, String branch, Double rating, Integer pricePerPerson,
-                  String phone, List<OpeningHour> openingHours, Set<String> amenities,
-                  LocalDateTime lastSyncedAt, String placeCategory, Set<String> safetyCategories, String industrySmallCode, String industrySmallName) {
+    private Store(
+            String destinationName,
+            Type destinationType,
+            Double latitude,
+            Double longitude,
+            String sido,
+            String sigungu,
+            String address,
+            String branch,
+            Double rating,
+            Integer pricePerPerson,
+            String phone,
+            List<OpeningHour> openingHours,
+            Set<String> amenities,
+            LocalDateTime lastSyncedAt,
+            String placeCategory,
+            Set<String> safetyCategories,
+            String industrySmallCode,
+            String industrySmallName) {
         GeoUtils.validate(latitude, longitude);
         this.destinationName = destinationName;
         this.destinationType = destinationType;
@@ -136,7 +152,8 @@ public class Store {
     }
 
     public void changeClassification(String placeCategory, Set<String> safetyCategories) {
-        Set<String> replacement = safetyCategories == null ? Set.of() : new HashSet<>(safetyCategories);
+        Set<String> replacement =
+                safetyCategories == null ? Set.of() : new HashSet<>(safetyCategories);
         if ((placeCategory != null && !isCategoryCode(placeCategory))
                 || replacement.stream().anyMatch(code -> !isCategoryCode(code))) {
             throw new IllegalArgumentException("장소 분류 코드는 50자 이내의 대문자·숫자·밑줄이어야 합니다.");
@@ -150,10 +167,7 @@ public class Store {
         return value != null && value.matches("[A-Z][A-Z0-9_]{0,49}");
     }
 
-    /**
-     * 주변 장소 탐색의 isOpen 판정용.
-     * 영업 시간 정보가 없으면 판단할 수 없으므로 null 을 반환한다.
-     */
+    /** 주변 장소 탐색의 isOpen 판정용. 영업 시간 정보가 없으면 판단할 수 없으므로 null 을 반환한다. */
     public Boolean isOpenAt(LocalDateTime dateTime) {
         if (openingHours.isEmpty()) {
             return null;
@@ -163,9 +177,15 @@ public class Store {
     }
 
     /** 외부 데이터 동기화 시 평점·상세 정보를 통째로 교체 */
-    public void syncDetails(Double rating, Integer pricePerPerson, String phone, List<OpeningHour> openingHours,
-                            Set<String> amenities, LocalDateTime syncedAt) {
-        List<OpeningHour> newOpeningHours = openingHours == null ? List.of() : new ArrayList<>(openingHours);
+    public void syncDetails(
+            Double rating,
+            Integer pricePerPerson,
+            String phone,
+            List<OpeningHour> openingHours,
+            Set<String> amenities,
+            LocalDateTime syncedAt) {
+        List<OpeningHour> newOpeningHours =
+                openingHours == null ? List.of() : new ArrayList<>(openingHours);
         Set<String> newAmenities = amenities == null ? Set.of() : new HashSet<>(amenities);
         this.rating = rating;
         this.pricePerPerson = pricePerPerson;
@@ -179,7 +199,10 @@ public class Store {
 
     /** 외부 장소 API 의 장소와 연결 (제공자를 바꾸면 다시 연결) */
     public void linkExternalPlace(String provider, String externalPlaceId) {
-        if (provider == null || provider.isBlank() || externalPlaceId == null || externalPlaceId.isBlank()) {
+        if (provider == null
+                || provider.isBlank()
+                || externalPlaceId == null
+                || externalPlaceId.isBlank()) {
             throw new IllegalArgumentException("외부 장소 제공자와 ID는 필수입니다.");
         }
         this.externalProvider = provider;

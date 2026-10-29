@@ -10,25 +10,26 @@ import java.util.TreeMap;
 
 /**
  * 타임라인 방문 순서 최적화 (규칙 기반 배치용).
+ *
  * <ol>
- *   <li>방문일이 정해진 장소는 날짜별로 묶는다.</li>
- *   <li>방문일이 없는 장소는 이동 거리가 가장 적게 늘어나는 자리에 끼워 넣는다 (같은 날 앞뒤 장소와의 거리 기준).
- *       첫 번째 정해진 날짜보다 앞의 빈 날에도 들어갈 수 있다. 모든 장소가 방문일이 없으면 이 단계 없이 한 묶음으로 본다.</li>
- *   <li>같은 날로 묶인 장소들은 이동 거리 합이 가장 짧은 순서(열린 경로)로 다시 정렬한다:
- *       모든 출발점에서 최근접 이웃으로 경로를 만들고 2-opt 로 다듬은 뒤 가장 짧은 것을 고른다.</li>
+ *   <li>방문일이 정해진 장소는 날짜별로 묶는다.
+ *   <li>방문일이 없는 장소는 이동 거리가 가장 적게 늘어나는 자리에 끼워 넣는다 (같은 날 앞뒤 장소와의 거리 기준). 첫 번째 정해진 날짜보다 앞의 빈 날에도 들어갈 수
+ *       있다. 모든 장소가 방문일이 없으면 이 단계 없이 한 묶음으로 본다.
+ *   <li>같은 날로 묶인 장소들은 이동 거리 합이 가장 짧은 순서(열린 경로)로 다시 정렬한다: 모든 출발점에서 최근접 이웃으로 경로를 만들고 2-opt 로 다듬은 뒤 가장
+ *       짧은 것을 고른다.
  * </ol>
- * 날짜를 실제로 나누는 일(하루 일정 초과, 먼 이동)은 {@link TimelineScheduler} 가 한다.
- * 결과는 입력에만 의존한다 (동률이면 입력 순서가 앞선 쪽).
+ *
+ * 날짜를 실제로 나누는 일(하루 일정 초과, 먼 이동)은 {@link TimelineScheduler} 가 한다. 결과는 입력에만 의존한다 (동률이면 입력 순서가 앞선 쪽).
  */
 public final class RouteOptimizer {
 
     /** 모든 출발점을 시도하는 최대 장소 수. 넘으면 첫 장소에서만 출발한다 */
     static final int MAX_STARTS = 40;
 
-    private RouteOptimizer() {
-    }
+    private RouteOptimizer() {}
 
-    public static List<TimelineScheduler.Stop> optimize(List<TimelineScheduler.Stop> stops, LocalDate startDate) {
+    public static List<TimelineScheduler.Stop> optimize(
+            List<TimelineScheduler.Stop> stops, LocalDate startDate) {
         if (stops.stream().allMatch(stop -> stop.fixedDate() == null)) {
             return bestOpenPath(stops);
         }
@@ -82,8 +83,10 @@ public final class RouteOptimizer {
 
     /** 장소 사이 직선거리(m). 좌표가 없으면 0 */
     static double meters(PlanningPlace from, PlanningPlace to) {
-        if (from.latitude() == null || from.longitude() == null
-                || to.latitude() == null || to.longitude() == null) {
+        if (from.latitude() == null
+                || from.longitude() == null
+                || to.latitude() == null
+                || to.longitude() == null) {
             return 0;
         }
         return to.distanceMetersFrom(from.latitude(), from.longitude());
@@ -98,10 +101,9 @@ public final class RouteOptimizer {
         return total;
     }
 
-    /**
-     * 각 자리의 실제 방문일 어림값: 방문일이 정해진 장소는 그 날, 아니면 바로 앞 장소의 날(맨 앞이면 여행 시작일).
-     */
-    private static LocalDate[] effectiveDates(List<TimelineScheduler.Stop> sequence, LocalDate startDate) {
+    /** 각 자리의 실제 방문일 어림값: 방문일이 정해진 장소는 그 날, 아니면 바로 앞 장소의 날(맨 앞이면 여행 시작일). */
+    private static LocalDate[] effectiveDates(
+            List<TimelineScheduler.Stop> sequence, LocalDate startDate) {
         LocalDate[] dates = new LocalDate[sequence.size()];
         LocalDate current = startDate;
         for (int i = 0; i < sequence.size(); i++) {
@@ -135,7 +137,8 @@ public final class RouteOptimizer {
         double[][] distance = new double[n][n];
         for (int i = 0; i < n; i++) {
             for (int j = i + 1; j < n; j++) {
-                distance[i][j] = distance[j][i] = meters(stops.get(i).place(), stops.get(j).place());
+                distance[i][j] =
+                        distance[j][i] = meters(stops.get(i).place(), stops.get(j).place());
             }
         }
         int[] best = null;
@@ -166,7 +169,8 @@ public final class RouteOptimizer {
             int from = path[step - 1];
             int next = -1;
             for (int candidate = 0; candidate < n; candidate++) {
-                if (!visited[candidate] && (next < 0 || distance[from][candidate] < distance[from][next] - 1e-6)) {
+                if (!visited[candidate]
+                        && (next < 0 || distance[from][candidate] < distance[from][next] - 1e-6)) {
                     next = candidate;
                 }
             }
@@ -184,10 +188,12 @@ public final class RouteOptimizer {
             improved = false;
             for (int i = 0; i < n - 1; i++) {
                 for (int j = i + 1; j < n; j++) {
-                    double before = (i > 0 ? distance[path[i - 1]][path[i]] : 0)
-                            + (j < n - 1 ? distance[path[j]][path[j + 1]] : 0);
-                    double after = (i > 0 ? distance[path[i - 1]][path[j]] : 0)
-                            + (j < n - 1 ? distance[path[i]][path[j + 1]] : 0);
+                    double before =
+                            (i > 0 ? distance[path[i - 1]][path[i]] : 0)
+                                    + (j < n - 1 ? distance[path[j]][path[j + 1]] : 0);
+                    double after =
+                            (i > 0 ? distance[path[i - 1]][path[j]] : 0)
+                                    + (j < n - 1 ? distance[path[i]][path[j + 1]] : 0);
                     if (after < before - 1e-6) {
                         for (int left = i, right = j; left < right; left++, right--) {
                             int swap = path[left];

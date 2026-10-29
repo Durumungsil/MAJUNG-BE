@@ -1,23 +1,26 @@
 package durumungsil.majung.domain.group.service;
 
-import durumungsil.majung.domain.group.entity.Group;
-import durumungsil.majung.domain.group.entity.GroupMember;
-import durumungsil.majung.domain.trip.entity.Trip;
-import durumungsil.majung.domain.trip.entity.TripStatus;
-import durumungsil.majung.domain.user.entity.User;
 import durumungsil.majung.domain.group.dto.request.CreateGroupRequest;
 import durumungsil.majung.domain.group.dto.request.UpdateGroupRequest;
 import durumungsil.majung.domain.group.dto.response.CreateGroupResponse;
 import durumungsil.majung.domain.group.dto.response.GroupDetailResponse;
 import durumungsil.majung.domain.group.dto.response.GroupListResponse;
 import durumungsil.majung.domain.group.dto.response.UpdateGroupResponse;
-import durumungsil.majung.global.exception.BusinessException;
-import durumungsil.majung.global.exception.ErrorCode;
+import durumungsil.majung.domain.group.entity.Group;
+import durumungsil.majung.domain.group.entity.GroupMember;
 import durumungsil.majung.domain.group.repository.GroupMemberRepository;
 import durumungsil.majung.domain.group.repository.GroupRepository;
+import durumungsil.majung.domain.preference.profile.ProfileLifecycle;
 import durumungsil.majung.domain.preference.repository.PreferenceRepository;
+import durumungsil.majung.domain.trip.entity.Trip;
+import durumungsil.majung.domain.trip.entity.TripStatus;
 import durumungsil.majung.domain.trip.repository.TripRepository;
+import durumungsil.majung.domain.user.entity.User;
+import durumungsil.majung.global.exception.BusinessException;
+import durumungsil.majung.global.exception.ErrorCode;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +30,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import durumungsil.majung.domain.preference.profile.ProfileLifecycle;
 
 @Service
 @RequiredArgsConstructor
@@ -46,53 +48,67 @@ public class GroupService {
     @Transactional
     public CreateGroupResponse createGroup(Long userId, CreateGroupRequest request) {
         User owner = groupReader.getUser(userId);
-        validatePeriod(request.travelStartDate(), request.travelEndDate(), ErrorCode.INVALID_GROUP_CREATE);
-        if (request.groupName().isBlank() || request.region().isBlank()
+        validatePeriod(
+                request.travelStartDate(), request.travelEndDate(), ErrorCode.INVALID_GROUP_CREATE);
+        if (request.groupName().isBlank()
+                || request.region().isBlank()
                 || !Group.isValidMaxMembers(request.maxMembers())) {
             throw new BusinessException(ErrorCode.INVALID_GROUP_CREATE);
         }
 
-        Group group = groupRepository.save(Group.builder()
-                .groupName(request.groupName().strip())
-                .maxMembers(request.maxMembers())
-                .memberCount(1)
-                .inviteCode(inviteCodeGenerator.generateUnique())
-                .owner(owner)
-                .build());
+        Group group =
+                groupRepository.save(
+                        Group.builder()
+                                .groupName(request.groupName().strip())
+                                .maxMembers(request.maxMembers())
+                                .memberCount(1)
+                                .inviteCode(inviteCodeGenerator.generateUnique())
+                                .owner(owner)
+                                .build());
         groupMemberRepository.save(GroupMember.builder().group(group).user(owner).build());
 
-        Trip trip = tripRepository.save(Trip.builder()
-                .group(group)
-                .region(request.region().strip())
-                .status(TripStatus.PLANNING)
-                .travelStartDate(request.travelStartDate())
-                .travelEndDate(request.travelEndDate())
-                .build());
+        Trip trip =
+                tripRepository.save(
+                        Trip.builder()
+                                .group(group)
+                                .region(request.region().strip())
+                                .status(TripStatus.PLANNING)
+                                .travelStartDate(request.travelStartDate())
+                                .travelEndDate(request.travelEndDate())
+                                .build());
 
         return CreateGroupResponse.of(group, trip);
     }
 
     /** 내가 속한 그룹 목록 (최신순). 회차 정보는 각 그룹의 현재 여행 회차 기준 */
     public GroupListResponse getMyGroups(Long userId) {
-        List<Group> groups = groupMemberRepository.findAllByUserIdWithGroup(userId).stream()
-                .map(GroupMember::getGroup)
-                .toList();
+        List<Group> groups =
+                groupMemberRepository.findAllByUserIdWithGroup(userId).stream()
+                        .map(GroupMember::getGroup)
+                        .toList();
         if (groups.isEmpty()) {
             return new GroupListResponse(List.of());
         }
 
         Map<Long, Trip> currentTrips = findCurrentTrips(groups.stream().map(Group::getId).toList());
-        Set<Long> completedTripIds = currentTrips.isEmpty() ? Set.of() : new HashSet<>(
-                preferenceRepository.findTripIdsByUserIdAndTripIdIn(userId,
-                        currentTrips.values().stream().map(Trip::getId).toList()));
+        Set<Long> completedTripIds =
+                currentTrips.isEmpty()
+                        ? Set.of()
+                        : new HashSet<>(
+                                preferenceRepository.findTripIdsByUserIdAndTripIdIn(
+                                        userId,
+                                        currentTrips.values().stream().map(Trip::getId).toList()));
 
-        List<GroupListResponse.Item> items = groups.stream()
-                .map(group -> {
-                    Trip trip = currentTrips.get(group.getId());
-                    boolean completed = trip != null && completedTripIds.contains(trip.getId());
-                    return GroupListResponse.Item.of(group, trip, completed);
-                })
-                .toList();
+        List<GroupListResponse.Item> items =
+                groups.stream()
+                        .map(
+                                group -> {
+                                    Trip trip = currentTrips.get(group.getId());
+                                    boolean completed =
+                                            trip != null && completedTripIds.contains(trip.getId());
+                                    return GroupListResponse.Item.of(group, trip, completed);
+                                })
+                        .toList();
         return new GroupListResponse(items);
     }
 
@@ -100,7 +116,10 @@ public class GroupService {
     public GroupDetailResponse getGroup(Long userId, Long groupId) {
         Group group = groupReader.getMemberGroup(groupId, userId);
         Trip trip = groupReader.findCurrentTrip(groupId);
-        long preferencesCompleted = trip == null ? 0 : preferenceRepository.countOfCurrentMembers(trip.getId(), groupId);
+        long preferencesCompleted =
+                trip == null
+                        ? 0
+                        : preferenceRepository.countOfCurrentMembers(trip.getId(), groupId);
         return GroupDetailResponse.of(group, trip, preferencesCompleted);
     }
 
@@ -117,7 +136,8 @@ public class GroupService {
             group.changeGroupName(request.groupName().strip());
         }
         if (request.maxMembers() != null) {
-            if (!Group.isValidMaxMembers(request.maxMembers()) || request.maxMembers() < group.getMemberCount()) {
+            if (!Group.isValidMaxMembers(request.maxMembers())
+                    || request.maxMembers() < group.getMemberCount()) {
                 throw new BusinessException(ErrorCode.INVALID_GROUP_SETTING);
             }
             group.changeMaxMembers(request.maxMembers());
@@ -139,8 +159,14 @@ public class GroupService {
                 trip.changeRegion(request.region().strip());
             }
             if (request.travelStartDate() != null || request.travelEndDate() != null) {
-                LocalDate start = request.travelStartDate() != null ? request.travelStartDate() : trip.getTravelStartDate();
-                LocalDate end = request.travelEndDate() != null ? request.travelEndDate() : trip.getTravelEndDate();
+                LocalDate start =
+                        request.travelStartDate() != null
+                                ? request.travelStartDate()
+                                : trip.getTravelStartDate();
+                LocalDate end =
+                        request.travelEndDate() != null
+                                ? request.travelEndDate()
+                                : trip.getTravelEndDate();
                 validatePeriod(start, end, ErrorCode.INVALID_GROUP_SETTING);
                 trip.changeTravelPeriod(start, end);
             }

@@ -1,6 +1,7 @@
 package durumungsil.majung.domain.preference.profile;
 
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;

@@ -5,15 +5,18 @@ import durumungsil.majung.domain.preference.entity.Preference;
 import durumungsil.majung.domain.preference.profile.AllergyNormalizer;
 import durumungsil.majung.domain.preference.repository.PreferenceRepository;
 import durumungsil.majung.domain.store.entity.Store;
-import durumungsil.majung.domain.store.repository.StoreRepository;
 import durumungsil.majung.domain.store.entity.Type;
+import durumungsil.majung.domain.store.repository.StoreRepository;
 import durumungsil.majung.domain.trip.entity.Trip;
 import durumungsil.majung.domain.trip.repository.TripConstraintRepository;
 import durumungsil.majung.global.exception.BusinessException;
 import durumungsil.majung.global.exception.ErrorCode;
 import durumungsil.majung.global.util.RegionAliases;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Component;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -56,23 +59,35 @@ public class AdventureDestinationSelector {
         for (Preference opinion : opinions) {
             allergies.addAll(readArray(opinion.getAllergies()));
             if (opinion.getBudgetMax() != null) {
-                if (opinion.getBudgetMax() < 0) { throw unsatisfied(); }
+                if (opinion.getBudgetMax() < 0) {
+                    throw unsatisfied();
+                }
                 budget = Math.min(budget, trip.mealBudgetPerPerson(opinion.getBudgetMax()));
             }
         }
-        constraints.findById(trip.getId()).ifPresent(constraint -> {
-            allergies.addAll(readArray(constraint.getAllergies()));
-            excluded.addAll(readArray(constraint.getExcludedCategories()));
-        });
+        constraints
+                .findById(trip.getId())
+                .ifPresent(
+                        constraint -> {
+                            allergies.addAll(readArray(constraint.getAllergies()));
+                            excluded.addAll(readArray(constraint.getExcludedCategories()));
+                        });
         Set<Type> excludedTypes = new HashSet<>();
         for (String category : excluded) {
-            Type type = Arrays.stream(Type.values())
-                    .filter(value -> value.name().equalsIgnoreCase(category) || value.getCode().equals(category)
-                            || value.getDisplayName().equals(category))
-                    .findFirst().orElseThrow(() -> unsatisfied());
+            Type type =
+                    Arrays.stream(Type.values())
+                            .filter(
+                                    value ->
+                                            value.name().equalsIgnoreCase(category)
+                                                    || value.getCode().equals(category)
+                                                    || value.getDisplayName().equals(category))
+                            .findFirst()
+                            .orElseThrow(() -> unsatisfied());
             excludedTypes.add(type);
         }
-        if (trip.getRegion() == null || trip.getRegion().isBlank()) { throw unsatisfied(); }
+        if (trip.getRegion() == null || trip.getRegion().isBlank()) {
+            throw unsatisfied();
+        }
         String region = trip.getRegion().trim();
         List<String> aliases = RegionAliases.of(region);
         int mealBudget = budget;
@@ -81,13 +96,31 @@ public class AdventureDestinationSelector {
         allowedTypes.removeAll(excludedTypes);
         allowedTypes.removeAll(Set.of(Type.LODGING, Type.SCIENCE_TECHNOLOGY));
         var normalizedAllergies = AllergyNormalizer.normalize(allergies);
-        if (allowedTypes.isEmpty()) { throw unsatisfied(); }
-        List<Store> candidates = new ArrayList<>(stores.findInRegionsAndTypes(
-                        aliases, allowedTypes, StoreRepository.regionCandidateLimit()).stream()
-                .filter(store -> store.getDestinationType() != null && allowedTypes.contains(store.getDestinationType()))
-                .filter(store -> StoreAllergyFilter.allows(store, normalizedAllergies))
-                .filter(store -> store.getDestinationType() != Type.FOOD || store.isWithinBudget(mealBudget))
-                .toList());
+        if (allowedTypes.isEmpty()) {
+            throw unsatisfied();
+        }
+        List<Store> candidates =
+                new ArrayList<>(
+                        stores
+                                .findInRegionsAndTypes(
+                                        aliases,
+                                        allowedTypes,
+                                        StoreRepository.regionCandidateLimit())
+                                .stream()
+                                .filter(
+                                        store ->
+                                                store.getDestinationType() != null
+                                                        && allowedTypes.contains(
+                                                                store.getDestinationType()))
+                                .filter(
+                                        store ->
+                                                StoreAllergyFilter.allows(
+                                                        store, normalizedAllergies))
+                                .filter(
+                                        store ->
+                                                store.getDestinationType() != Type.FOOD
+                                                        || store.isWithinBudget(mealBudget))
+                                .toList());
         return candidates;
     }
 
@@ -110,10 +143,17 @@ public class AdventureDestinationSelector {
         // 동일한 취향·예산 필터를 적용한 후보에서 앞뒤 경로가 이어지는 장소를 고른다.
         List<Store> candidates = candidates(trip);
         Collections.shuffle(candidates);
-        return candidates.stream().filter(candidate -> !excluded.contains(candidate.getDestinationId()))
-                .filter(candidate -> previous == null || distance(previous, candidate) <= MAX_WALKING_LEG_METERS)
-                .filter(candidate -> next == null || distance(next, candidate) <= MAX_WALKING_LEG_METERS)
-                .findFirst().orElseThrow(AdventureDestinationSelector::unsatisfied);
+        return candidates.stream()
+                .filter(candidate -> !excluded.contains(candidate.getDestinationId()))
+                .filter(
+                        candidate ->
+                                previous == null
+                                        || distance(previous, candidate) <= MAX_WALKING_LEG_METERS)
+                .filter(
+                        candidate ->
+                                next == null || distance(next, candidate) <= MAX_WALKING_LEG_METERS)
+                .findFirst()
+                .orElseThrow(AdventureDestinationSelector::unsatisfied);
     }
 
     private static double distance(Store a, Store b) {
@@ -121,13 +161,19 @@ public class AdventureDestinationSelector {
     }
 
     private Set<String> readArray(String json) {
-        if (json == null || json.isBlank()) { return Set.of(); }
+        if (json == null || json.isBlank()) {
+            return Set.of();
+        }
         try {
             JsonNode node = objectMapper.readTree(json);
-            if (!node.isArray()) { throw unsatisfied(); }
+            if (!node.isArray()) {
+                throw unsatisfied();
+            }
             Set<String> values = new HashSet<>();
             for (JsonNode entry : node) {
-                if (!entry.isString() || entry.asString().isBlank()) { throw unsatisfied(); }
+                if (!entry.isString() || entry.asString().isBlank()) {
+                    throw unsatisfied();
+                }
                 values.add(entry.asString());
             }
             return values;

@@ -2,6 +2,7 @@ package durumungsil.majung.domain.store.repository;
 
 import durumungsil.majung.domain.store.entity.Store;
 import durumungsil.majung.domain.store.entity.Type;
+
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,18 +22,16 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
         return PageRequest.of(0, MAX_REGION_CANDIDATES);
     }
 
-    /**
-     * 모험 미션용 - 지역과 업종이 맞는 장소를 평점 높은 순(평점 없으면 뒤로)으로.
-     * 개수는 {@link #regionCandidateLimit()} 로 자른다.
-     */
-    @Query("""
+    /** 모험 미션용 - 지역과 업종이 맞는 장소를 평점 높은 순(평점 없으면 뒤로)으로. 개수는 {@link #regionCandidateLimit()} 로 자른다. */
+    @Query(
+            """
             select s from Store s
             where (s.sido in :regions or s.sigungu in :regions)
               and s.destinationType in :types
             order by s.rating desc nulls last, s.destinationId
             """)
-    List<Store> findInRegionsAndTypes(@Param("regions") Collection<String> regions,
-                                      @Param("types") Collection<Type> types,
-                                      Pageable limit);
-
+    List<Store> findInRegionsAndTypes(
+            @Param("regions") Collection<String> regions,
+            @Param("types") Collection<Type> types,
+            Pageable limit);
 }

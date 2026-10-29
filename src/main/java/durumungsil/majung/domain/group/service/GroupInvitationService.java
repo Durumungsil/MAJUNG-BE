@@ -1,21 +1,23 @@
 package durumungsil.majung.domain.group.service;
 
-import durumungsil.majung.domain.group.entity.Group;
-import durumungsil.majung.domain.group.entity.GroupMember;
-import durumungsil.majung.domain.user.entity.User;
 import durumungsil.majung.domain.group.dto.response.InviteCodeResponse;
 import durumungsil.majung.domain.group.dto.response.JoinGroupResponse;
 import durumungsil.majung.domain.group.dto.response.VerifyInviteCodeResponse;
-import durumungsil.majung.global.exception.BusinessException;
-import durumungsil.majung.global.exception.ErrorCode;
+import durumungsil.majung.domain.group.entity.Group;
+import durumungsil.majung.domain.group.entity.GroupMember;
 import durumungsil.majung.domain.group.repository.GroupMemberRepository;
 import durumungsil.majung.domain.group.repository.GroupRepository;
+import durumungsil.majung.domain.preference.profile.ProfileLifecycle;
+import durumungsil.majung.domain.user.entity.User;
+import durumungsil.majung.global.exception.BusinessException;
+import durumungsil.majung.global.exception.ErrorCode;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import durumungsil.majung.domain.preference.profile.ProfileLifecycle;
 
 @Service
 @RequiredArgsConstructor
@@ -40,15 +42,19 @@ public class GroupInvitationService {
     /** 초대 코드 검증 - 참여 전 그룹 정보 미리보기 */
     public VerifyInviteCodeResponse verifyInviteCode(Long userId, String inviteCode) {
         validateFormat(inviteCode);
-        Group group = groupRepository.findByInviteCode(inviteCode)
-                .filter(found -> !found.isInviteCodeExpired(LocalDateTime.now()))
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVITE_CODE_NOT_FOUND));
+        Group group =
+                groupRepository
+                        .findByInviteCode(inviteCode)
+                        .filter(found -> !found.isInviteCodeExpired(LocalDateTime.now()))
+                        .orElseThrow(() -> new BusinessException(ErrorCode.INVITE_CODE_NOT_FOUND));
 
-        boolean alreadyMember = groupMemberRepository.existsByGroupIdAndUserId(group.getId(), userId);
+        boolean alreadyMember =
+                groupMemberRepository.existsByGroupIdAndUserId(group.getId(), userId);
         if (!alreadyMember && group.isFull()) {
             throw new BusinessException(ErrorCode.GROUP_FULL);
         }
-        return VerifyInviteCodeResponse.of(group, groupReader.findCurrentTrip(group.getId()), !alreadyMember);
+        return VerifyInviteCodeResponse.of(
+                group, groupReader.findCurrentTrip(group.getId()), !alreadyMember);
     }
 
     /** 그룹 참여 - 그룹 행을 잠근 뒤 정원·중복을 확인하고 멤버로 추가 */
@@ -66,7 +72,8 @@ public class GroupInvitationService {
         }
 
         group.increaseMemberCount();
-        GroupMember member = groupMemberRepository.save(GroupMember.builder().group(group).user(user).build());
+        GroupMember member =
+                groupMemberRepository.save(GroupMember.builder().group(group).user(user).build());
         groupMemberRepository.flush();
         profileLifecycle.membershipChanged(groupId);
         return JoinGroupResponse.from(member);

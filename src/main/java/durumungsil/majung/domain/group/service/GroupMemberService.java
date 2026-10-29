@@ -1,21 +1,23 @@
 package durumungsil.majung.domain.group.service;
 
+import durumungsil.majung.domain.group.dto.response.GroupMembersResponse;
 import durumungsil.majung.domain.group.entity.Group;
 import durumungsil.majung.domain.group.entity.GroupMember;
+import durumungsil.majung.domain.group.repository.GroupMemberRepository;
+import durumungsil.majung.domain.preference.profile.ProfileLifecycle;
+import durumungsil.majung.domain.preference.repository.PreferenceRepository;
 import durumungsil.majung.domain.trip.entity.Trip;
-import durumungsil.majung.domain.group.dto.response.GroupMembersResponse;
 import durumungsil.majung.global.exception.BusinessException;
 import durumungsil.majung.global.exception.ErrorCode;
-import durumungsil.majung.domain.group.repository.GroupMemberRepository;
-import durumungsil.majung.domain.preference.repository.PreferenceRepository;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import durumungsil.majung.domain.preference.profile.ProfileLifecycle;
 
 @Service
 @RequiredArgsConstructor
@@ -32,8 +34,10 @@ public class GroupMemberService {
         Group group = groupReader.getMemberGroup(groupId, userId);
         List<GroupMember> members = groupMemberRepository.findAllByGroupIdWithUser(groupId);
         Trip trip = groupReader.findCurrentTrip(groupId);
-        Set<Long> preferenceUserIds = trip == null ? Set.of()
-                : new HashSet<>(preferenceRepository.findUserIdsByTripId(trip.getId()));
+        Set<Long> preferenceUserIds =
+                trip == null
+                        ? Set.of()
+                        : new HashSet<>(preferenceRepository.findUserIdsByTripId(trip.getId()));
         return GroupMembersResponse.of(group, members, preferenceUserIds);
     }
 
@@ -41,8 +45,10 @@ public class GroupMemberService {
     @Transactional
     public void leaveGroup(Long userId, Long groupId) {
         Group group = groupReader.getGroupForUpdate(groupId);
-        GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND));
+        GroupMember member =
+                groupMemberRepository
+                        .findByGroupIdAndUserId(groupId, userId)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND));
         if (group.isOwner(userId)) {
             throw new BusinessException(ErrorCode.OWNER_CANNOT_LEAVE);
         }

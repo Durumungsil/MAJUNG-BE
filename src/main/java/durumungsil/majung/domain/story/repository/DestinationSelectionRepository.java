@@ -1,6 +1,7 @@
 package durumungsil.majung.domain.story.repository;
 
 import durumungsil.majung.domain.story.entity.DestinationSelection;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -11,7 +12,8 @@ import java.util.List;
 public interface DestinationSelectionRepository extends JpaRepository<DestinationSelection, Long> {
 
     /** 여행 회차의 선택 여행지 (방문일, 방문 순서 순) */
-    @Query("""
+    @Query(
+            """
             select d from DestinationSelection d
             join fetch d.googlePlace
             where d.trip.id = :tripId

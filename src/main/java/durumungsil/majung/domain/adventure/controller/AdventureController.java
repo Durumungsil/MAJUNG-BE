@@ -1,12 +1,14 @@
 package durumungsil.majung.domain.adventure.controller;
 
+import static durumungsil.majung.domain.adventure.dto.AdventureDtos.*;
+
 import durumungsil.majung.domain.adventure.service.AdventureService;
 import durumungsil.majung.global.response.ApiResponse;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-
-import static durumungsil.majung.domain.adventure.dto.AdventureDtos.*;
 
 @RestController
 @RequestMapping("/api/v1/groups/{groupId}")
@@ -16,12 +18,14 @@ public class AdventureController {
 
     @PostMapping("/adventure/process")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<Created> create(@PathVariable Long groupId, @RequestBody CreateRequest request) {
+    public ApiResponse<Created> create(
+            @PathVariable Long groupId, @RequestBody CreateRequest request) {
         return ApiResponse.success("모험 커리큘럼이 생성되었습니다.", service.create(groupId, request));
     }
 
     @GetMapping("/adventure/process/{processId}")
-    public ApiResponse<ProcessView> progress(@PathVariable Long groupId, @PathVariable Long processId) {
+    public ApiResponse<ProcessView> progress(
+            @PathVariable Long groupId, @PathVariable Long processId) {
         return ApiResponse.success("모험 커리큘럼을 조회했습니다.", service.progress(groupId, processId));
     }
 
@@ -31,8 +35,10 @@ public class AdventureController {
     }
 
     @PostMapping("/missions/{missionId}/start")
-    public ApiResponse<Started> start(@PathVariable Long groupId, @PathVariable Long missionId,
-                                      @RequestBody StartRequest request) {
+    public ApiResponse<Started> start(
+            @PathVariable Long groupId,
+            @PathVariable Long missionId,
+            @RequestBody StartRequest request) {
         return ApiResponse.success("미션을 시작했습니다.", service.start(groupId, missionId, request));
     }
 
@@ -42,20 +48,28 @@ public class AdventureController {
     }
 
     @PostMapping("/missions/{missionId}/distance")
-    public ApiResponse<DistanceResponse> distance(@PathVariable Long groupId, @PathVariable Long missionId,
-                                                  @RequestBody DistanceRequest request) {
-        return ApiResponse.success("목적지까지 거리를 조회했습니다.", service.distance(groupId, missionId, request));
+    public ApiResponse<DistanceResponse> distance(
+            @PathVariable Long groupId,
+            @PathVariable Long missionId,
+            @RequestBody DistanceRequest request) {
+        return ApiResponse.success(
+                "목적지까지 거리를 조회했습니다.", service.distance(groupId, missionId, request));
     }
 
     @PostMapping("/missions/{missionId}/replace")
-    public ApiResponse<CurrentMission> replace(@PathVariable Long groupId, @PathVariable Long missionId,
-                                               @RequestBody ReplaceRequest request) {
-        return ApiResponse.success("로드뷰가 없는 미션을 교체했습니다. 다시 시작해주세요.", service.replace(groupId, missionId, request));
+    public ApiResponse<CurrentMission> replace(
+            @PathVariable Long groupId,
+            @PathVariable Long missionId,
+            @RequestBody ReplaceRequest request) {
+        return ApiResponse.success(
+                "로드뷰가 없는 미션을 교체했습니다. 다시 시작해주세요.", service.replace(groupId, missionId, request));
     }
 
     @PostMapping("/missions/{missionId}/complete")
-    public ApiResponse<Completed> complete(@PathVariable Long groupId, @PathVariable Long missionId,
-                                          @RequestBody CompleteRequest request) {
+    public ApiResponse<Completed> complete(
+            @PathVariable Long groupId,
+            @PathVariable Long missionId,
+            @RequestBody CompleteRequest request) {
         return ApiResponse.success("미션을 완료했습니다.", service.complete(groupId, missionId, request));
     }
 }

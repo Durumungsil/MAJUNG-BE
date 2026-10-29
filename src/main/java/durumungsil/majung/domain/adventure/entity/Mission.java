@@ -2,7 +2,9 @@ package durumungsil.majung.domain.adventure.entity;
 
 import durumungsil.majung.domain.store.entity.Store;
 import durumungsil.majung.global.util.GeoUtils;
+
 import jakarta.persistence.*;
+
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -12,9 +14,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
-/**
- * 현재 미션 조회 / 초이스 / 미션 완료(인증)
- */
+/** 현재 미션 조회 / 초이스 / 미션 완료(인증) */
 @Entity
 @Table(name = "missions")
 @Getter
@@ -70,7 +70,9 @@ public class Mission {
     private LocalDateTime completedAt;
 
     @ElementCollection
-    @CollectionTable(name = "mission_rejected_places", joinColumns = @JoinColumn(name = "mission_id"))
+    @CollectionTable(
+            name = "mission_rejected_places",
+            joinColumns = @JoinColumn(name = "mission_id"))
     @Column(name = "store_id", nullable = false)
     private java.util.Set<Long> rejectedPlaceIds = new java.util.HashSet<>();
 
@@ -87,8 +89,13 @@ public class Mission {
     }
 
     @Builder
-    private Mission(AdventureProcess process, Store store, Integer missionOrder,
-                    MissionStatus status, String title, String objective) {
+    private Mission(
+            AdventureProcess process,
+            Store store,
+            Integer missionOrder,
+            MissionStatus status,
+            String title,
+            String objective) {
         this.process = process;
         this.store = store;
         this.missionOrder = missionOrder;
@@ -121,10 +128,7 @@ public class Mission {
         this.routeType = routeType;
     }
 
-    /**
-     * 미션 시작. 앱이 보낸 현재 위치를 출발점으로 기록한다.
-     * 이미 시작했으면 처음 시작 시각·위치를 유지한다(다시 호출해도 기록이 바뀌지 않음).
-     */
+    /** 미션 시작. 앱이 보낸 현재 위치를 출발점으로 기록한다. 이미 시작했으면 처음 시작 시각·위치를 유지한다(다시 호출해도 기록이 바뀌지 않음). */
     public void start(LocalDateTime now, Double latitude, Double longitude) {
         if (status != MissionStatus.AVAILABLE) {
             throw new IllegalStateException("아직 진행할 수 없는 미션입니다.");
@@ -153,8 +157,9 @@ public class Mission {
         if (now == null || now.isBefore(startedAt)) {
             throw new IllegalArgumentException("완료 시각은 시작 시각보다 빠를 수 없습니다.");
         }
-        int expectedMinutes = Rank.expectedWalkingMinutes(
-                store.distanceMetersFrom(startLatitude, startLongitude));
+        int expectedMinutes =
+                Rank.expectedWalkingMinutes(
+                        store.distanceMetersFrom(startLatitude, startLongitude));
         Rank rank = Rank.of(hintCount, Duration.between(startedAt, now), expectedMinutes);
         this.completedAt = now.truncatedTo(ChronoUnit.MICROS);
         this.status = MissionStatus.COMPLETED;
