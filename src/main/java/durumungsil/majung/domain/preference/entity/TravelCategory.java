@@ -10,5 +10,7 @@ public enum TravelCategory {
     CULTURE,    // 문화관광
     ACTIVITY,   // 액티비티
     FOOD,       // 맛집 탐방
-    NATURE      // 자연친화적
+    NATURE,     // 자연친화적
+    CAFE,       // 카페·디저트
+    SIGHTSEEING // 관광명소
 }

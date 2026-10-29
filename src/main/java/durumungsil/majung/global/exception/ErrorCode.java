@@ -11,6 +11,8 @@ public enum ErrorCode {
     // 공통
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "요청 값이 올바르지 않습니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
+    PLACES_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "장소 검색 API가 설정되지 않았습니다."),
+    PLACES_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "장소 검색 서버와 통신하지 못했습니다."),
 
     // 인증
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
