@@ -38,6 +38,8 @@
 
 ## 검증 기록
 
-- Java 21, H2 PostgreSQL 모드 전체 82개 테스트 통과(실패/건너뜀 0) 및 Gradle build 성공. 큰 추천 cursor를 실제 Tomcat HTTP 요청으로 전달하는 테스트 포함.
+- Java 21, H2 PostgreSQL 모드 전체 83개 테스트 통과(실패/건너뜀 0) 및 Gradle build 성공. 큰 추천 cursor를 실제 Tomcat HTTP 요청으로 전달하는 테스트 포함.
 - 임시 PostgreSQL 17에서 좌표 upsert·만료·재조회, 프로필 JSON/버전, 스토리·극한·모험 API 테스트. API 호출은 모두 가짜 클라이언트다.
-- PostgreSQL의 기존 Store FK를 가진 소규모 테스트 스키마에 마이그레이션 적용 및 재실행: 모험/Stores 보존, 스토리/룰렛 기록 초기화, 프로필 PENDING 생성 확인. 추가로 실제 main(d3446eb) 코드로 생성한 전체 PostgreSQL 스키마에 SQL을 적용하고 새 서버가 ddl-auto=validate로 기동하는 것까지 확인했다. 운영 DB는 변경하지 않았다.
+- PostgreSQL의 기존 Store FK를 가진 소규모 테스트 스키마에 마이그레이션 적용 및 재실행: 모험/Stores 보존, 스토리/룰렛 기록 초기화, 프로필 PENDING 생성 확인. 추가로 실제 main(d3446eb) 코드로 생성한 전체 PostgreSQL 스키마에 SQL을 적용하고 새 서버가 ddl-auto=validate로 기동하는 것까지 확인했다. 이후 2026-10-31 사용자 승인에 따라 실제 Supabase를 public 스키마 백업 후 전환했다. 그룹·설문·모험·Stores 데이터 수 보존과 validate 기동을 확인했다.
+
+- 2026-10-31 실제 Google Places 추천 → 선택 저장 → 일정 생성/조회, 룰렛 중복 제외·식당 추첨, 모험 거리·교체·시간/정확도 검증·완료 API를 확인했다. Gemini는 비활성화한 RULE 경로로 검증했다. 실제 호출에서 확인한 Text Search의 PRICE_LEVEL_FREE 요청 오류는 제거하고 회귀 테스트를 추가했다. 실 Google 다음 페이지·주변 추천·만료 좌표 재조회는 추가 확인 대상이다.
