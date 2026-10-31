@@ -124,6 +124,29 @@ class StoryModeApiTests {
     }
 
     @Test
+    void budgetFiltersUseOnlyPriceLevelsSupportedByTextSearch() throws Exception {
+        var f = seed(true, TripMode.STORY);
+        when(client.searchText(any(), eq(Projection.RECOMMENDATION)))
+                .thenReturn(new Page(List.of(place(f.id(1), 35.1, "cafe")), null));
+        for (int budget : new int[] {30_000, 90_000, 300_000}) {
+            jdbc.update("update preferences set budget_max=? where trip_id=?", budget, f.trip());
+            mvc.perform(
+                            get(f.base() + "/destinations/recommendations")
+                                    .header("Authorization", auth(f.owner()))
+                                    .param("category", "CAFE"))
+                    .andExpect(status().isOk());
+        }
+        var calls = org.mockito.ArgumentCaptor.forClass(Search.class);
+        verify(client, times(3)).searchText(calls.capture(), eq(Projection.RECOMMENDATION));
+        org.assertj.core.api.Assertions.assertThat(
+                        calls.getAllValues().stream().map(Search::priceLevels).toList())
+                .containsExactly(
+                        List.of("PRICE_LEVEL_INEXPENSIVE"),
+                        List.of("PRICE_LEVEL_INEXPENSIVE", "PRICE_LEVEL_MODERATE"),
+                        List.of());
+    }
+
+    @Test
     void largeBufferedPageCanBePassedThroughRealHttpRequest() throws Exception {
         var f = seed(true, TripMode.STORY);
         when(client.searchText(any(), eq(Projection.RECOMMENDATION)))

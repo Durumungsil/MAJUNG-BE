@@ -429,9 +429,8 @@ public class DestinationRecommendationService {
         if (category != TravelCategory.FOOD && category != TravelCategory.CAFE
                 || profile.budget().mealPerPerson() == null) return List.of();
         int meal = profile.budget().mealPerPerson();
-        if (meal <= 10000) return List.of("PRICE_LEVEL_FREE", "PRICE_LEVEL_INEXPENSIVE");
-        if (meal <= 30000)
-            return List.of("PRICE_LEVEL_FREE", "PRICE_LEVEL_INEXPENSIVE", "PRICE_LEVEL_MODERATE");
+        if (meal <= 10000) return List.of("PRICE_LEVEL_INEXPENSIVE");
+        if (meal <= 30000) return List.of("PRICE_LEVEL_INEXPENSIVE", "PRICE_LEVEL_MODERATE");
         return List.of();
     }
 
