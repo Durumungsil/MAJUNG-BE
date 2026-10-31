@@ -4,6 +4,8 @@
 
 JDK 없이 도커만 있으면 API 서버를 띄울 수 있습니다. 프론트 개발 중 API 연결용입니다.
 
+**기존 main DB를 처음 전환한다면 서버 실행 전에 [배포 안내](docs/google-places-deployment.md)의 백업·마이그레이션을 먼저 적용합니다.** 기본 DDL 모드는 validate이며 스키마를 자동 변경하지 않습니다.
+
 1. 저장소를 클론하고 `.env.example`을 `.env`로 복사한 뒤 값을 채웁니다. 실제 값(DB·JWT·구글·Gemini)은 팀 비공개 채널로 받고, `.env`는 깃에 올리지 않습니다.
 2. 서버를 띄웁니다. 처음에는 의존성을 받느라 몇 분 걸립니다.
 
@@ -39,7 +41,8 @@ durumungsil.majung
 │   ├── group       그룹, 멤버, 초대 (GroupReader: 그룹 소속·진행 중인 여행 조회)
 │   ├── trip        여행 회차, 최소 조건
 │   ├── preference  취향 입력·통합
-│   ├── store       장소 (여행지·식당)
+│   ├── place       Google Places 유형·좌표 캐시
+│   ├── store       모험용 상가 장소
 │   ├── story       스토리모드: 여행지 추천·선택, 타임라인
 │   ├── adventure   모험모드: 커리큘럼, 미션
 │   └── roulette    익스트림모드: 최소 조건, 여행지·식당 룰렛, 결과 조회
@@ -103,8 +106,12 @@ refactor: 상권 조회 로직 서비스 계층으로 분리
 
 ## 스토리모드
 
-[API·동작 정책·임시 구현 범위](docs/story-mode.md)를 참고합니다.
+[API·Places 추천·일정 계약](docs/story-mode.md)를 참고합니다.
 
 ## 익스트림모드
 
-[API·추첨 정책·장소 분류 보강·검증 방법](docs/extreme-mode.md)을 참고합니다.
+[API·Places ID 추첨 정책·검증 방법](docs/extreme-mode.md)을 참고합니다.
+
+## Google Places 전환 배포
+
+[환경변수·DB 마이그레이션·운영 확인](docs/google-places-deployment.md)을 배포 전에 확인합니다. 스토리·극한은 Places, 모험은 Stores를 사용합니다.
