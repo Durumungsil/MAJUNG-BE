@@ -114,4 +114,4 @@ refactor: 상권 조회 로직 서비스 계층으로 분리
 
 ## Google Places 전환 배포
 
-[환경변수·DB 마이그레이션·운영 확인](docs/google-places-deployment.md)과 [프론트 연동 목록](docs/google-places-frontend-tasks.md)을 배포 전에 확인합니다. 스토리·극한은 Places, 모험은 Stores를 사용합니다.
+[환경변수·DB 마이그레이션·운영 확인](docs/google-places-deployment.md)을 배포 전에 확인합니다. 스토리·극한은 Places, 모험은 Stores를 사용합니다.

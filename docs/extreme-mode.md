@@ -29,4 +29,4 @@
 - 최소 조건의 allergies는 프로필의 정규화 enum, excluded_categories는 프로필의 avoid_place_types다. 식당 응답에도 그룹 알레르기를 돌려준다.
 - ID 전용 검색은 결과의 types를 받지 않는다. 따라서 피할 유형은 검색의 includedType 선택에서만 제외할 수 있고, 음식점의 추가 유형·메뉴·원재료까지 검증하지 못한다. 이 응답을 알레르기 안전 보증으로 표시하지 않는다. UNKNOWN 알레르기가 있으면 식당 추첨을 거부한다.
 
-상세 이름·사진은 [프론트 작업](google-places-frontend-tasks.md), 운영 설정은 [배포 안내](google-places-deployment.md)를 따른다.
+상세 이름·사진은 프론트 SDK로 조회한다. 운영 설정은 [배포 안내](google-places-deployment.md)를 따른다.
