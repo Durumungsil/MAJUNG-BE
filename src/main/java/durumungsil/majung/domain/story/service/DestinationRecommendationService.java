@@ -15,7 +15,10 @@ import durumungsil.majung.global.util.GeoUtils;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.util.*;
@@ -33,6 +36,7 @@ public class DestinationRecommendationService {
     private final Executor executor;
     private final RecommendationCursor cursors;
     private final Clock clock;
+    private final TransactionTemplate readTransaction;
 
     public DestinationRecommendationService(
             GroupReader groupReader,
@@ -43,7 +47,8 @@ public class DestinationRecommendationService {
             GooglePlacesClient client,
             @Qualifier("placesExecutor") Executor executor,
             RecommendationCursor cursors,
-            Clock clock) {
+            Clock clock,
+            PlatformTransactionManager transactionManager) {
         this.groupReader = groupReader;
         this.profiles = profiles;
         this.selections = selections;
@@ -53,6 +58,8 @@ public class DestinationRecommendationService {
         this.executor = executor;
         this.cursors = cursors;
         this.clock = clock;
+        this.readTransaction = new TransactionTemplate(transactionManager);
+        this.readTransaction.setReadOnly(true);
     }
 
     public record Candidate(Place place, TravelCategory category, int distance, double score) {}
@@ -75,13 +82,16 @@ public class DestinationRecommendationService {
 
     private record Batch(QueryPage request, Page page) {}
 
+    private record TripContext(Trip trip, PreferenceProfileData profile) {}
+
     private record Result(
             DestinationRecommendationsResponse.Area area,
             List<Candidate> candidates,
             String nextCursor) {}
 
-    // Google 장소 캐시(upsert)를 쓰므로 읽기 전용 트랜잭션을 쓰지 않는다.
-    @Transactional
+    // 요청 전체를 트랜잭션으로 묶지 않는다. 권한·프로필 조회는 짧은 읽기 전용 트랜잭션에서 끝내고, Google 장소 캐시(upsert)는
+    // 호출마다 자신의 짧은 트랜잭션으로 커밋해 겹치는 추천 요청끼리 행 잠금을 서로 다른 순서로 오래 쥐지 않게 한다.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public DestinationRecommendationsResponse recommend(
             Long userId,
             Long groupId,
@@ -89,9 +99,16 @@ public class DestinationRecommendationService {
             String categoryValue,
             String sort,
             String cursor) {
-        groupReader.getMemberGroup(groupId, userId);
-        Trip trip = groupReader.getActiveStoryTrip(groupId);
-        var profile = profiles.forTrip(trip);
+        var context =
+                Objects.requireNonNull(
+                        readTransaction.execute(
+                                status -> {
+                                    groupReader.getMemberGroup(groupId, userId);
+                                    Trip active = groupReader.getActiveStoryTrip(groupId);
+                                    return new TripContext(active, profiles.forTrip(active));
+                                }));
+        Trip trip = context.trip();
+        var profile = context.profile();
         var result = search(userId, trip, profile, limit, categoryValue, sort, cursor, null, null);
         return new DestinationRecommendationsResponse(
                 trip.getRegion(),
@@ -113,8 +130,8 @@ public class DestinationRecommendationService {
                 result.nextCursor());
     }
 
-    // Google 장소 캐시(upsert)를 쓰므로 읽기 전용 트랜잭션을 쓰지 않는다.
-    @Transactional
+    // recommend와 같은 이유로 요청 전체를 트랜잭션으로 묶지 않는다.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public NearbyDestinationsResponse recommendNearby(
             Long userId,
             Long groupId,
@@ -123,10 +140,18 @@ public class DestinationRecommendationService {
             Integer radius,
             String category,
             String cursor) {
-        groupReader.getMemberGroup(groupId, userId);
-        Trip trip = groupReader.getActiveStoryTrip(groupId);
-        if (radius != null && (radius < 100 || radius > 5000)) throw invalid();
-        var profile = profiles.forTrip(trip);
+        var context =
+                Objects.requireNonNull(
+                        readTransaction.execute(
+                                status -> {
+                                    groupReader.getMemberGroup(groupId, userId);
+                                    Trip active = groupReader.getActiveStoryTrip(groupId);
+                                    if (radius != null && (radius < 100 || radius > 5000))
+                                        throw invalid();
+                                    return new TripContext(active, profiles.forTrip(active));
+                                }));
+        Trip trip = context.trip();
+        var profile = context.profile();
         var base = places.requireLocation(placeId);
         TransportType transport = profile.transport().primary();
         int meters =

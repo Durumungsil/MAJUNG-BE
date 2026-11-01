@@ -19,6 +19,8 @@ import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 @Service
 @RequiredArgsConstructor
@@ -29,11 +31,20 @@ public class GooglePlacePersistence {
     private final Clock clock;
 
     /**
-     * 원자적 upsert. IDs-only 결과로 이미 저장된 좌표를 덮어쓰지 않는다. 호출자의 트랜잭션에 참여하므로 영속성 컨텍스트의 엔티티는 그대로 관리
-     * 상태로 남으며, 호출자는 쓰기 가능한 트랜잭션이어야 한다.
+     * 원자적 upsert. IDs-only 결과로 이미 저장된 좌표를 덮어쓰지 않는다. 호출자의 트랜잭션이 있으면 참여하므로 영속성 컨텍스트의 엔티티는 그대로
+     * 관리 상태로 남으며, 이때 호출자는 쓰기 가능한 트랜잭션이어야 한다. 호출자 트랜잭션이 없으면 이 호출만의 짧은 트랜잭션으로 커밋한다.
+     *
+     * <p>동시에 겹치는 장소 묶음을 캐시해도 행 잠금 순서가 엇갈리지 않도록 장소 ID로 중복을 합치고 ID 오름차순으로 쓴다.
      */
     @Transactional
     public void cache(List<Place> places) {
+        Map<String, Place> ordered = new TreeMap<>();
+        for (Place place : places) {
+            if (!RestGooglePlacesClient.validId(place.id()))
+                throw new IllegalArgumentException("유효하지 않은 장소 ID");
+            // 같은 ID가 여러 번 오면 마지막 좌표를 쓰고, 좌표 없는 결과는 좌표 있는 결과를 덮지 않는다.
+            ordered.merge(place.id(), place, (kept, next) -> next.location() != null ? next : kept);
+        }
         boolean postgres =
                 entityManager
                                 .getEntityManagerFactory()
@@ -41,9 +52,7 @@ public class GooglePlacePersistence {
                                 .getJdbcServices()
                                 .getDialect()
                         instanceof PostgreSQLDialect;
-        for (Place place : places) {
-            if (!RestGooglePlacesClient.validId(place.id()))
-                throw new IllegalArgumentException("유효하지 않은 장소 ID");
+        for (Place place : ordered.values()) {
             if (place.location() == null) {
                 if (postgres)
                     jdbc.update(

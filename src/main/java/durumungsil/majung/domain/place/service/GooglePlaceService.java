@@ -11,6 +11,7 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
 import java.util.List;
@@ -32,8 +33,12 @@ public class GooglePlaceService {
                         .orElseThrow(() -> new BusinessException(ErrorCode.DESTINATION_NOT_FOUND));
         persistence.cache(List.of(new GooglePlacesClient.Place(id, null, location, List.of())));
         if (cached != null && entityManager.contains(cached)) {
-            entityManager.refresh(cached);
-            return cached;
+            if (TransactionSynchronizationManager.isActualTransactionActive()) {
+                entityManager.refresh(cached);
+                return cached;
+            }
+            // 트랜잭션 밖(OSIV)에서는 refresh를 쓸 수 없으므로 오래된 엔티티를 떼어 내고 다시 읽는다.
+            entityManager.detach(cached);
         }
         return repository.findById(id).orElseThrow();
     }
