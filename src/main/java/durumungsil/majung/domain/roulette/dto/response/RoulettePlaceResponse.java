@@ -1,12 +1,19 @@
 package durumungsil.majung.domain.roulette.dto.response;
 
-import durumungsil.majung.domain.roulette.service.RouletteCategories;
-import durumungsil.majung.domain.store.entity.Store;
+import durumungsil.majung.domain.preference.entity.TravelCategory;
+import durumungsil.majung.domain.roulette.entity.RouletteResult;
 
-public record RoulettePlaceResponse(Long placeId, String name, String category, String address,
-                                     Double latitude, Double longitude) {
-    public static RoulettePlaceResponse of(Store store) {
-        return new RoulettePlaceResponse(store.getDestinationId(), store.getDestinationName(),
-                RouletteCategories.of(store), store.getAddress(), store.getLatitude(), store.getLongitude());
+import java.time.Instant;
+
+public record RoulettePlaceResponse(
+        String placeId, TravelCategory category, Double latitude, Double longitude) {
+    public static RoulettePlaceResponse of(RouletteResult result) {
+        var place = result.getGooglePlace();
+        boolean fresh = place.hasFreshLocation(Instant.now());
+        return new RoulettePlaceResponse(
+                place.getPlaceId(),
+                result.getCategory(),
+                fresh ? place.getLatitude() : null,
+                fresh ? place.getLongitude() : null);
     }
 }

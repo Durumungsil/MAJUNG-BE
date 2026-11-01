@@ -1,11 +1,13 @@
 package durumungsil.majung.global.ai;
 
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -14,14 +16,12 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Gemini generateContent REST 호출.
- * 요청 본문은 Map 으로 만들어 전역 snake_case 설정과 상관없이 Gemini 필드 이름(camelCase)을 그대로 보낸다.
+ * Gemini generateContent REST 호출. 요청 본문은 Map 으로 만들어 전역 snake_case 설정과 상관없이 Gemini 필드 이름(camelCase)을
+ * 그대로 보낸다.
  */
 @Slf4j
 @Component
 public class RestGeminiClient implements GeminiClient {
-
-    private static final int LOG_BODY_LIMIT = 500;
 
     private final GeminiProperties properties;
     private final ObjectMapper objectMapper;
@@ -33,10 +33,11 @@ public class RestGeminiClient implements GeminiClient {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(properties.timeout());
         requestFactory.setReadTimeout(properties.timeout());
-        this.restClient = RestClient.builder()
-                .baseUrl(properties.baseUrl())
-                .requestFactory(requestFactory)
-                .build();
+        this.restClient =
+                RestClient.builder()
+                        .baseUrl(properties.baseUrl())
+                        .requestFactory(requestFactory)
+                        .build();
     }
 
     @Override
@@ -49,28 +50,43 @@ public class RestGeminiClient implements GeminiClient {
         if (!isEnabled()) {
             return Optional.empty();
         }
-        Map<String, Object> body = Map.of(
-                "contents", List.of(Map.of(
-                        "role", "user",
-                        "parts", List.of(Map.of("text", prompt)))),
-                "generationConfig", Map.of(
-                        "responseMimeType", "application/json",
-                        "responseJsonSchema", responseSchema));
+        Map<String, Object> body =
+                Map.of(
+                        "contents",
+                                List.of(
+                                        Map.of(
+                                                "role",
+                                                "user",
+                                                "parts",
+                                                List.of(Map.of("text", prompt)))),
+                        "generationConfig",
+                                Map.of(
+                                        "responseMimeType",
+                                        "application/json",
+                                        "responseJsonSchema",
+                                        responseSchema));
         try {
-            String response = restClient.post()
-                    .uri("/v1beta/models/{model}:generateContent", properties.model())
-                    .header("x-goog-api-key", properties.apiKey())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(objectMapper.writeValueAsString(body))
-                    .retrieve()
-                    .body(String.class);
+            String response =
+                    restClient
+                            .post()
+                            .uri("/v1beta/models/{model}:generateContent", properties.model())
+                            .header("x-goog-api-key", properties.apiKey())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .body(objectMapper.writeValueAsString(body))
+                            .retrieve()
+                            .body(String.class);
             return extractText(response);
         } catch (RestClientResponseException e) {
-            log.warn("Gemini 호출 실패 (model={}, status={}): {}", properties.model(),
-                    e.getStatusCode().value(), truncate(e.getResponseBodyAsString()));
+            log.warn(
+                    "Gemini 호출 실패 (model={}, status={})",
+                    properties.model(),
+                    e.getStatusCode().value());
             return Optional.empty();
         } catch (RuntimeException e) {
-            log.warn("Gemini 호출 실패 (model={}): {}", properties.model(), e.toString());
+            log.warn(
+                    "Gemini 호출 실패 (model={}, type={})",
+                    properties.model(),
+                    e.getClass().getSimpleName());
             return Optional.empty();
         }
     }
@@ -98,12 +114,5 @@ public class RestGeminiClient implements GeminiClient {
             return Optional.empty();
         }
         return Optional.of(text.toString());
-    }
-
-    private static String truncate(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value.length() <= LOG_BODY_LIMIT ? value : value.substring(0, LOG_BODY_LIMIT) + "...";
     }
 }

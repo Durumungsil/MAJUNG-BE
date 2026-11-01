@@ -2,6 +2,7 @@ package durumungsil.majung.global.exception;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 
 @Getter
@@ -11,6 +12,8 @@ public enum ErrorCode {
     // 공통
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "요청 값이 올바르지 않습니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
+    PLACES_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "장소 검색 API가 설정되지 않았습니다."),
+    PLACES_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "장소 검색 서버와 통신하지 못했습니다."),
 
     // 인증
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
@@ -88,6 +91,8 @@ public enum ErrorCode {
     CURRENT_MISSION_NOT_FOUND(HttpStatus.NOT_FOUND, "진행할 수 있는 현재 미션이 없습니다."),
     MISSION_NOT_FOUND(HttpStatus.NOT_FOUND, "미션을 찾을 수 없습니다."),
     MISSION_NOT_TODAY(HttpStatus.CONFLICT, "오늘 진행할 수 있는 미션이 아닙니다."),
+    MISSION_HINT_REQUIRED(HttpStatus.CONFLICT, "힌트를 사용한 미션에서만 요청할 수 있습니다."),
+    MISSION_REPLACEMENT_LIMIT(HttpStatus.CONFLICT, "미션 교체 횟수를 초과했습니다."),
     MISSION_NOT_STARTED(HttpStatus.CONFLICT, "시작하지 않은 미션입니다."),
     MISSION_ALREADY_COMPLETED(HttpStatus.CONFLICT, "이미 완료된 미션입니다."),
     MISSION_LOCKED(HttpStatus.CONFLICT, "아직 진행할 수 없는 미션입니다.");

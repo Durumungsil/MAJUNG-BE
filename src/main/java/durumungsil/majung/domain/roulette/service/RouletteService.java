@@ -1,29 +1,26 @@
 package durumungsil.majung.domain.roulette.service;
 
 import durumungsil.majung.domain.group.service.GroupReader;
+import durumungsil.majung.domain.place.PlaceTypeCatalog;
+import durumungsil.majung.domain.place.service.GooglePlaceService;
+import durumungsil.majung.domain.preference.entity.TravelCategory;
+import durumungsil.majung.domain.preference.profile.*;
 import durumungsil.majung.domain.roulette.dto.request.DrawRouletteRequest;
-import durumungsil.majung.domain.roulette.dto.response.DrawRouletteResponse;
-import durumungsil.majung.domain.roulette.dto.response.MinimumConstraintsResponse;
-import durumungsil.majung.domain.roulette.dto.response.RoulettePlaceResponse;
-import durumungsil.majung.domain.roulette.dto.response.RouletteResultResponse;
-import durumungsil.majung.domain.roulette.entity.RouletteResult;
-import durumungsil.majung.domain.roulette.entity.RouletteType;
+import durumungsil.majung.domain.roulette.dto.response.*;
+import durumungsil.majung.domain.roulette.entity.*;
 import durumungsil.majung.domain.roulette.repository.RouletteResultRepository;
-import durumungsil.majung.domain.store.entity.Store;
-import durumungsil.majung.domain.store.entity.Type;
-import durumungsil.majung.domain.store.repository.StoreRepository;
-import durumungsil.majung.domain.trip.entity.Trip;
-import durumungsil.majung.global.exception.BusinessException;
-import durumungsil.majung.global.exception.ErrorCode;
+import durumungsil.majung.domain.story.service.DestinationRecommendationService;
+import durumungsil.majung.global.exception.*;
+import durumungsil.majung.global.places.GooglePlacesClient;
+import durumungsil.majung.global.places.GooglePlacesClient.*;
 import durumungsil.majung.global.util.RegionAliases;
+
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
@@ -31,52 +28,112 @@ import java.util.concurrent.ThreadLocalRandom;
 @Transactional(readOnly = true)
 public class RouletteService {
     private final GroupReader groupReader;
-    private final MinimumConstraintsService constraintsService;
-    private final RouletteResultRepository resultRepository;
-    private final StoreRepository storeRepository;
+    private final ProfileReader profiles;
+    private final RouletteResultRepository results;
+    private final GooglePlacesClient client;
+    private final GooglePlaceService places;
 
     @Transactional
-    public DrawRouletteResponse draw(Long userId, Long groupId, RouletteType type, DrawRouletteRequest request) {
-        // 그룹 설정·취향 변경과 같은 잠금을 사용해 라운드와 중복 제외를 함께 보장한다.
+    public DrawRouletteResponse draw(
+            Long userId, Long groupId, RouletteType type, DrawRouletteRequest request) {
         groupReader.getMemberGroupForUpdate(groupId, userId);
-        Trip trip = groupReader.getActiveTrip(groupId);
+        var trip = groupReader.getActiveTrip(groupId);
         MinimumConstraintsService.validateMode(trip);
-        List<String> regions = RegionAliases.of(trip.getRegion());
-        if (request.region() != null && !regions.contains(request.region().strip())) {
+        if (request.region() != null
+                && !RegionAliases.of(trip.getRegion()).contains(request.region().strip()))
             throw new BusinessException(ErrorCode.INVALID_ROULETTE_REGION);
+        var profile = profiles.forTrip(trip);
+        TravelCategory category = null;
+        if (request.category() != null) {
+            try {
+                category = TravelCategory.valueOf(request.category());
+            } catch (IllegalArgumentException error) {
+                throw new BusinessException(ErrorCode.INVALID_RECOMMENDATION_QUERY);
+            }
         }
-        MinimumConstraintsResponse constraints = constraintsService.forTrip(trip);
-        List<RouletteResult> previous = resultRepository.findAllByTripIdAndTypeOrderByRoundAsc(trip.getId(), type);
-        Set<Long> excludedIds = new HashSet<>(request.excludePlaceIds());
-        previous.forEach(result -> excludedIds.add(result.getStore().getDestinationId()));
-        excludedIds.add(0L); // SQL IN 목록이 비어 있지 않게 한다. 장소 PK는 양수다.
-        Set<String> excludedCategories = new HashSet<>(constraints.excludedCategories());
-        excludedCategories.add("");
-        Set<Type> types = type == RouletteType.RESTAURANT
-                ? Set.of(Type.FOOD) : Set.of(Type.RETAIL, Type.ART_SPORTS);
-        String category = request.category() == null ? "" : request.category();
-        long count = storeRepository.countRouletteCandidates(regions, types, category, excludedIds, excludedCategories);
-        ErrorCode empty = type == RouletteType.RESTAURANT
-                ? ErrorCode.NO_ROULETTE_RESTAURANT : ErrorCode.NO_ROULETTE_DESTINATION;
-        if (count == 0) throw new BusinessException(empty);
-        // 적격 후보 전체에서 균등하게 뽑되 엔티티는 한 곳만 읽는다.
-        int offset = Math.toIntExact(ThreadLocalRandom.current().nextLong(count));
-        Store selected = storeRepository.findRouletteCandidates(regions, types, category, excludedIds,
-                        excludedCategories, PageRequest.of(offset, 1)).stream().findFirst()
-                .orElseThrow(() -> new BusinessException(empty));
+        ErrorCode empty =
+                type == RouletteType.RESTAURANT
+                        ? ErrorCode.NO_ROULETTE_RESTAURANT
+                        : ErrorCode.NO_ROULETTE_DESTINATION;
+        if (category == TravelCategory.FESTIVAL
+                || type == RouletteType.RESTAURANT
+                        && category != null
+                        && category != TravelCategory.FOOD) throw new BusinessException(empty);
+        List<PreferenceProfileData.SearchQuery> queries;
+        if (type == RouletteType.RESTAURANT)
+            queries =
+                    DestinationRecommendationService.queries(
+                            profile, trip.getRegion(), TravelCategory.FOOD);
+        else if (category != null)
+            queries = DestinationRecommendationService.queries(profile, trip.getRegion(), category);
+        else {
+            queries =
+                    profile.searchQueries().stream()
+                            .filter(q -> q.category() != TravelCategory.FOOD)
+                            .toList();
+            if (queries.isEmpty())
+                queries =
+                        DestinationRecommendationService.queries(
+                                profile, trip.getRegion(), TravelCategory.SIGHTSEEING);
+        }
+        queries =
+                queries.stream()
+                        .filter(
+                                q ->
+                                        !profile.avoidPlaceTypes().contains(q.includedType())
+                                                && PlaceTypeCatalog.allows(
+                                                        q.category(), q.includedType()))
+                        .toList();
+        if (queries.isEmpty()
+                || type == RouletteType.RESTAURANT
+                        && profile.allergies().normalized().contains(Allergy.UNKNOWN))
+            throw new BusinessException(empty);
+        // 한 번의 추첨에 검색 한 번. 첫 페이지 상위 결과 중 제외되지 않은 장소를 균등 추첨한다.
+        var query = queries.get(ThreadLocalRandom.current().nextInt(queries.size()));
+        var page =
+                client.searchText(
+                        new Search(query.text(), query.includedType(), true, null, List.of(), null),
+                        Projection.IDS_ONLY);
+        var previous = results.findAllByTripIdAndTypeOrderByRoundAsc(trip.getId(), type);
+        Set<String> excluded = new HashSet<>(request.excludePlaceIds());
+        previous.forEach(p -> excluded.add(p.getGooglePlace().getPlaceId()));
+        var candidates =
+                page.places().stream()
+                        .map(Place::id)
+                        .distinct()
+                        .filter(id -> !excluded.contains(id))
+                        .toList();
+        if (candidates.isEmpty()) throw new BusinessException(empty);
+        String id = candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
+        var place = places.reference(id);
         int round = previous.stream().mapToInt(RouletteResult::getRound).max().orElse(0) + 1;
-        RouletteResult result = resultRepository.saveAndFlush(RouletteResult.builder()
-                .trip(trip).type(type).store(selected).round(round).build());
-        return new DrawRouletteResponse(result.getId(), type, RoulettePlaceResponse.of(selected),
-                type == RouletteType.RESTAURANT ? constraints.allergies() : null, round, result.getDrawnAt());
+        var result =
+                results.saveAndFlush(
+                        RouletteResult.builder()
+                                .trip(trip)
+                                .type(type)
+                                .googlePlace(place)
+                                .category(query.category())
+                                .round(round)
+                                .build());
+        return new DrawRouletteResponse(
+                result.getId(),
+                type,
+                RoulettePlaceResponse.of(result),
+                type == RouletteType.RESTAURANT
+                        ? profile.allergies().normalized().stream().map(Enum::name).toList()
+                        : null,
+                round,
+                result.getDrawnAt());
     }
 
     public RouletteResultResponse get(Long userId, Long groupId, Long rouletteId) {
         groupReader.getMemberGroup(groupId, userId);
-        RouletteResult result = resultRepository.findByIdAndTripGroupId(rouletteId, groupId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ROULETTE_RESULT_NOT_FOUND));
+        var result =
+                results.findByIdAndTripGroupId(rouletteId, groupId)
+                        .orElseThrow(
+                                () -> new BusinessException(ErrorCode.ROULETTE_RESULT_NOT_FOUND));
         MinimumConstraintsService.validateMode(result.getTrip());
-        // 이전 회차의 저장 결과도 현재 멤버가 다시 열어 길 안내를 이어갈 수 있다.
         return RouletteResultResponse.of(result);
     }
 }
