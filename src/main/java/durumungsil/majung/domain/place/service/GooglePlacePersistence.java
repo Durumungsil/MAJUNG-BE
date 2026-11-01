@@ -13,7 +13,6 @@ import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
@@ -29,8 +28,11 @@ public class GooglePlacePersistence {
     private final GooglePlaceRepository repository;
     private final Clock clock;
 
-    /** 원자적 upsert. IDs-only 결과로 이미 저장된 좌표를 덮어쓰지 않는다. */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    /**
+     * 원자적 upsert. IDs-only 결과로 이미 저장된 좌표를 덮어쓰지 않는다. 호출자의 트랜잭션에 참여하므로 영속성 컨텍스트의 엔티티는 그대로 관리
+     * 상태로 남으며, 호출자는 쓰기 가능한 트랜잭션이어야 한다.
+     */
+    @Transactional
     public void cache(List<Place> places) {
         boolean postgres =
                 entityManager
@@ -72,7 +74,6 @@ public class GooglePlacePersistence {
                         Timestamp.from(clock.instant()));
             }
         }
-        entityManager.clear();
     }
 
     @Scheduled(fixedDelayString = "${google.places.expiry-interval-ms:3600000}")

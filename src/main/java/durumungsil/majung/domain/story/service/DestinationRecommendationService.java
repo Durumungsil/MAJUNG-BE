@@ -80,6 +80,8 @@ public class DestinationRecommendationService {
             List<Candidate> candidates,
             String nextCursor) {}
 
+    // Google 장소 캐시(upsert)를 쓰므로 읽기 전용 트랜잭션을 쓰지 않는다.
+    @Transactional
     public DestinationRecommendationsResponse recommend(
             Long userId,
             Long groupId,
@@ -111,6 +113,8 @@ public class DestinationRecommendationService {
                 result.nextCursor());
     }
 
+    // Google 장소 캐시(upsert)를 쓰므로 읽기 전용 트랜잭션을 쓰지 않는다.
+    @Transactional
     public NearbyDestinationsResponse recommendNearby(
             Long userId,
             Long groupId,
