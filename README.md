@@ -23,6 +23,71 @@ JDK 없이 도커만 있으면 API 서버를 띄울 수 있습니다. 프론트 
 - `build.gradle`의 Java toolchain 버전을 바꿨다면 `.env`의 `JAVA_VERSION`도 같은 값으로 맞춥니다(기본 21).
 - 코드를 바꾼 뒤에는 `--build`를 붙여 다시 띄워야 반영됩니다.
 
+## 현재 k3s · Argo CD · Vault 배포
+
+배포 manifest는 형제 저장소 `../MAJUNG-DEPLOY`에서 관리합니다. 기존 클러스터의 ESO는 `apps` namespace만 감시하므로 앱도 `apps`에 배포하고 기존 `SecretStore/apps/vault`를 재사용합니다. `apps` namespace·Vault·ESO는 인프라 소유이며 앱 저장소에서 생성하거나 삭제하지 않습니다. Vault root 토큰·unseal 키·앱 비밀값을 Git 또는 GitHub Actions에 넣지 않습니다.
+
+### 1. Vault 값 등록
+
+VPN에서 `https://10.42.1.0:8002`에 접속해 KV v2 엔진 `secret`에 다음 두 경로를 만듭니다.
+
+| 경로 | 필드 |
+| --- | --- |
+| `apps/majung/production` | 필수: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `GOOGLE_CLIENT_IDS` |
+| `apps/majung/ghcr` | `username`: GHCR 계정명, `token`: 해당 패키지의 `read:packages` 권한이 있는 pull 전용 PAT(classic) |
+
+`DB_URL`은 JDBC URL이며 JWT 키는 32바이트 이상입니다. 선택 필드 `GEMINI_API_KEY`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_PLACES_CURSOR_SECRET`도 production 경로에 저장할 수 있습니다. 생략하면 기존 앱 기본값을 사용하며, Places 키가 없으면 Places 기능은 사용할 수 없습니다. `GOOGLE_CLIENT_IDS`는 실제 클라이언트 ID들을 콤마로 구분합니다.
+
+일반 설정은 `MAJUNG-DEPLOY/kubernetes/kustomization.yaml`의 ConfigMap으로 관리합니다. `PORT=8080`, `JPA_DDL_AUTO=validate`, 작은 DB 풀을 유지합니다. 실제 프론트 주소를 쓰기 전 `CORS_ALLOWED_ORIGINS`를 명시하고, 유료 Gemini 사용 확인 전 `GEMINI_PAID_TIER_CONFIRMED=false`를 유지합니다. production 경로에는 위 앱 필드만 넣어 ConfigMap의 일반 설정을 덮어쓰지 않게 합니다. 개발용 `.env`는 자동 업로드되지 않습니다.
+
+`external-secrets.yaml`이 앱 환경변수용 `majung-api-secret`과 이미지 다운로드용 `majung-ghcr-pull-secret`을 생성합니다. GHCR 토큰은 JSON template으로 dockerconfigjson Secret이 되며 앱 컨테이너의 환경변수에는 들어가지 않습니다. private 패키지라면 계정에 패키지 읽기 권한과 필요한 조직 SSO 승인이 있어야 합니다. Public 패키지로 바꾸고 pull 인증을 제거하려면 Deployment의 `imagePullSecrets`와 해당 ExternalSecret을 함께 제거합니다.
+
+### 2. GitHub Actions → 배포 저장소
+
+배포 저장소는 `https://github.com/Durumungsil/MAJUNG-DEPLOY.git`이며 `main` 브랜치의 manifest를 사용합니다. 로컬 `MAJUNG-DEPLOY`의 `origin`도 이 주소로 등록합니다. 다른 저장소를 사용하려면 Actions의 `DEPLOY_REPOSITORY` 변수와 Argo CD UI의 Application Source Repository URL을 함께 수정합니다.
+
+BE 저장소의 Actions 설정:
+
+| 구분 | 이름 | 용도 |
+| --- | --- | --- |
+| Secret | `DEPLOY_REPO_TOKEN` | 배포 저장소 한 곳의 Contents 읽기/쓰기 권한을 가진 토큰 |
+| Variable, 선택 | `DEPLOY_REPOSITORY` | 기본 `${저장소 소유자}/MAJUNG-DEPLOY` |
+| Variable, 선택 | `DEPLOY_REF` | 기본 `main`; 변경 시 Argo CD `targetRevision`도 맞춤 |
+
+GHCR push는 workflow의 `GITHUB_TOKEN`과 `packages: write` 권한을 사용합니다. 최초 push 후 패키지 가시성·접근 권한을 확인하세요. `KUBE_CONFIG`, `INFRA_REPO_TOKEN`, `INFRA_REPOSITORY`는 이 workflow에서 사용하지 않습니다. GitHub-hosted runner를 VPN에 연결하거나 내부 Kubernetes API를 인터넷에 열 필요도 없습니다.
+
+`main` push → BE의 로컬 `Dockerfile`로 amd64/arm64 이미지 빌드 → GHCR push → 배포 저장소 `kubernetes/deployment.yaml`을 `image@sha256:…`로 갱신·commit/push합니다. 같은 digest이면 commit하지 않습니다. 배포 저장소 branch protection이 봇의 직접 push를 막으면 해당 토큰의 제한된 봇 push를 허용하거나 PR 기반 운영으로 변경해야 합니다. 앱 비밀값은 빌드 인자나 이미지에 넣지 않습니다.
+
+### 3. Argo CD 등록과 첫 실행
+
+이미지가 게시되고 배포 저장소에 digest가 기록된 뒤 Argo CD UI(`https://10.42.1.0:8001`)의 New App에서 아래 값으로 등록합니다. Application 정의는 UI에서 관리하며 배포 저장소에는 별도 `argocd/` 디렉토리를 두지 않습니다. Private 배포 저장소라면 먼저 Argo CD에 해당 저장소의 읽기 전용 인증을 등록합니다. 이 인증은 CI의 배포 저장소 쓰기 토큰과 별개입니다.
+
+| 항목 | 값 |
+| --- | --- |
+| Application Name | `majung-api` |
+| Project | `default` |
+| Repository URL | `https://github.com/Durumungsil/MAJUNG-DEPLOY.git` |
+| Revision | `main` |
+| Path | `kubernetes` |
+| Destination Cluster | `https://kubernetes.default.svc` |
+| Destination Namespace | `apps` |
+| Sync Policy | `Automatic`; 자동 삭제·설정 복구를 원하면 `Prune`, `Self Heal` 활성화 |
+
+Application은 `main`의 `kubernetes`를 감시해 현재 클러스터의 `apps`에 자동 동기화합니다. Secret 리소스는 먼저 제출되지만 sync-wave만으로 Vault 최신 값의 동기화 완료가 보장되지는 않습니다. 최초에는 아래 상태가 Ready인지 확인합니다.
+
+```bash
+kubectl -n apps get secretstore vault
+kubectl -n apps get externalsecret majung-api-secret majung-ghcr-pull-secret
+kubectl -n apps rollout status deployment/majung-api --timeout=600s
+kubectl -n apps port-forward service/majung-api 8080:80
+```
+
+Service는 ClusterIP만 사용합니다. 외부 Ingress·도메인·새 Traefik 포트는 임의로 만들지 않습니다. API는 관리자 port-forward로 `http://localhost:8080`에서 확인할 수 있습니다. 현재 probe는 인증 없는 HTTP health endpoint가 없어 TCP 가용성만 검사하며 DB/API 기능 정상까지 보장하지 않습니다.
+
+운영 DB migration은 기존 [Places 배포 절차](docs/google-places-deployment.md)를 먼저 확인해야 하며 이 설정은 자동 migration을 실행하지 않습니다. Vault 값만 바꾸면 ESO가 약 1분 뒤 Secret을 갱신하고, 환경변수 반영에는 해당 Deployment의 rollout restart가 필요합니다. `refreshTime` 갱신과 Ready를 확인한 뒤 재시작하세요. 새 이미지 배포 때도 ESO 조회와 Argo CD 배포는 비동기이므로, Secret을 함께 변경했다면 동기화 완료를 먼저 확인합니다.
+
+설정 검증: Kustomize 렌더링과 현재 클러스터의 server dry-run, 실제 Vault·ESO를 통한 임시 앱 Secret/registry Secret 동기화, Deployment와 같은 envFrom·보안 설정을 사용한 임시 Pod의 환경변수 주입을 확인했습니다. workflow의 실제 shell도 임시 Git 원격 저장소에서 digest 변경·push와 동일 digest 재실행을 검증했습니다. 검증용 리소스·비밀값은 삭제했습니다. GitHub-hosted 빌드·실제 GHCR 인증 pull·Spring 앱의 운영 DB 연결·배포는 실행하지 않았습니다.
+
 ## 인증
 
 Google ID 토큰을 `POST /api/v1/auth/google`에 전달해 access/refresh 토큰을 발급받습니다. 이후 API에는 `Authorization: Bearer {access_token}`을 전달합니다. `X-User-Id`로 사용자를 지정할 수 없습니다. Google 클라이언트 ID와 JWT 서명 키는 `GOOGLE_CLIENT_IDS`, `JWT_SECRET` 환경변수로 설정합니다. 서명 키는 32바이트 이상이며 토큰 유효 기간은 1초 이상이어야 합니다.
