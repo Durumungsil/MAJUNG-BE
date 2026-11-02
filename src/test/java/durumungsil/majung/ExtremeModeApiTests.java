@@ -138,6 +138,18 @@ class ExtremeModeApiTests {
                                         .getContentAsString())
                         .path("data");
         assertThat(places.findById(f.id(1)).orElseThrow().getLatitude()).isNull();
+        var current =
+                mapper.readTree(
+                                mvc.perform(
+                                                get(f.base() + "/roulette/current")
+                                                        .header("Authorization", auth(f.user())))
+                                        .andExpect(status().isOk())
+                                        .andReturn()
+                                        .getResponse()
+                                        .getContentAsString())
+                        .path("data");
+        assertThat(current.path("destination").isNull()).isTrue();
+        assertThat(current.path("restaurant").isNull()).isTrue();
         mvc.perform(
                         post(f.base() + "/roulette/destinations")
                                 .header("Authorization", auth(f.user()))

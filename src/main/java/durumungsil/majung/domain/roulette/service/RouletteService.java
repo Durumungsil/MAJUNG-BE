@@ -127,6 +127,39 @@ public class RouletteService {
                 result.getDrawnAt());
     }
 
+    public CurrentRouletteResponse current(Long userId, Long groupId) {
+        groupReader.getMemberGroup(groupId, userId);
+        var trip = groupReader.findCurrentTrip(groupId);
+        if (trip == null) throw new BusinessException(ErrorCode.NO_ACTIVE_TRIP);
+        MinimumConstraintsService.validateMode(trip);
+        return new CurrentRouletteResponse(
+                groupId,
+                trip.getId(),
+                latestConfirmed(trip.getId(), RouletteType.DESTINATION),
+                latestConfirmed(trip.getId(), RouletteType.RESTAURANT));
+    }
+
+    private RouletteResultResponse latestConfirmed(Long tripId, RouletteType type) {
+        return results.findFirstByTripIdAndTypeAndConfirmedAtIsNotNullOrderByConfirmedAtDescIdDesc(
+                        tripId, type)
+                .map(RouletteResultResponse::of)
+                .orElse(null);
+    }
+
+    @Transactional
+    public RouletteResultResponse confirm(Long userId, Long groupId, Long rouletteId) {
+        // 추첨·회차 생성·모드 변경과 같은 그룹 잠금을 사용한다.
+        groupReader.getMemberGroupForUpdate(groupId, userId);
+        var trip = groupReader.getActiveTrip(groupId);
+        MinimumConstraintsService.validateMode(trip);
+        var result =
+                results.findByIdAndTripId(rouletteId, trip.getId())
+                        .orElseThrow(
+                                () -> new BusinessException(ErrorCode.ROULETTE_RESULT_NOT_FOUND));
+        result.confirm();
+        return RouletteResultResponse.of(result);
+    }
+
     public RouletteResultResponse get(Long userId, Long groupId, Long rouletteId) {
         groupReader.getMemberGroup(groupId, userId);
         var result =
