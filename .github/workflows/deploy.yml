@@ -90,7 +90,7 @@ jobs:
         run: |
           set -euo pipefail
           kubectl set image --local -f deploy/kubernetes/deployment.yaml \
-            majung-api="${IMAGE}@${DIGEST}" -o yaml > "${RUNNER_TEMP}/deployment.yaml"
+            durumungsil-api="${IMAGE}@${DIGEST}" -o yaml > "${RUNNER_TEMP}/deployment.yaml"
           # kubectl emits no object when the image is already unchanged.
           if [[ ! -s "${RUNNER_TEMP}/deployment.yaml" ]]; then
             echo 'Deployment already references this image digest.'
@@ -104,5 +104,5 @@ jobs:
             echo 'Deployment already references this image digest.'
             exit 0
           fi
-          git -C deploy commit -m "chore: deploy majung-api ${GITHUB_SHA}"
+          git -C deploy commit -m "chore: deploy durumungsil-api ${GITHUB_SHA}"
           git -C deploy push
