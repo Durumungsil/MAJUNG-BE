@@ -44,7 +44,7 @@ VPN에서 `https://10.42.1.0:8002`에 접속해 KV v2 엔진 `secret`에 다음 
 
 ### 2. GitHub Actions → 배포 저장소
 
-배포 저장소는 `https://github.com/Durumungsil/MAJUNG-DEPLOY.git`이며 `main` 브랜치의 manifest를 사용합니다. 로컬 `MAJUNG-DEPLOY`의 `origin`도 이 주소로 등록합니다. 다른 저장소를 사용하려면 Actions의 `DEPLOY_REPOSITORY` 변수와 `argocd/majung-api.yaml`의 `repoURL`을 함께 수정합니다.
+배포 저장소는 `https://github.com/Durumungsil/MAJUNG-DEPLOY.git`이며 `main` 브랜치의 manifest를 사용합니다. 로컬 `MAJUNG-DEPLOY`의 `origin`도 이 주소로 등록합니다. 다른 저장소를 사용하려면 Actions의 `DEPLOY_REPOSITORY` 변수와 Argo CD UI의 Application Source Repository URL을 함께 수정합니다.
 
 BE 저장소의 Actions 설정:
 
@@ -60,7 +60,18 @@ GHCR push는 workflow의 `GITHUB_TOKEN`과 `packages: write` 권한을 사용합
 
 ### 3. Argo CD 등록과 첫 실행
 
-이미지가 게시되고 배포 저장소에 digest가 기록된 뒤 `MAJUNG-DEPLOY/argocd/majung-api.yaml`을 Argo CD의 Application으로 등록합니다. 관리자 kubectl context에서는 `kubectl apply -f ../MAJUNG-DEPLOY/argocd/majung-api.yaml`을 사용할 수 있고, UI(`https://10.42.1.0:8001`)의 New App → Edit as YAML에서도 등록할 수 있습니다. Private 배포 저장소라면 먼저 Argo CD에 해당 저장소의 읽기 전용 인증을 등록합니다. 이 인증은 CI의 배포 저장소 쓰기 토큰과 별개입니다.
+이미지가 게시되고 배포 저장소에 digest가 기록된 뒤 Argo CD UI(`https://10.42.1.0:8001`)의 New App에서 아래 값으로 등록합니다. Application 정의는 UI에서 관리하며 배포 저장소에는 별도 `argocd/` 디렉토리를 두지 않습니다. Private 배포 저장소라면 먼저 Argo CD에 해당 저장소의 읽기 전용 인증을 등록합니다. 이 인증은 CI의 배포 저장소 쓰기 토큰과 별개입니다.
+
+| 항목 | 값 |
+| --- | --- |
+| Application Name | `majung-api` |
+| Project | `default` |
+| Repository URL | `https://github.com/Durumungsil/MAJUNG-DEPLOY.git` |
+| Revision | `main` |
+| Path | `kubernetes` |
+| Destination Cluster | `https://kubernetes.default.svc` |
+| Destination Namespace | `apps` |
+| Sync Policy | `Automatic`; 자동 삭제·설정 복구를 원하면 `Prune`, `Self Heal` 활성화 |
 
 Application은 `main`의 `kubernetes`를 감시해 현재 클러스터의 `apps`에 자동 동기화합니다. Secret 리소스는 먼저 제출되지만 sync-wave만으로 Vault 최신 값의 동기화 완료가 보장되지는 않습니다. 최초에는 아래 상태가 Ready인지 확인합니다.
 
