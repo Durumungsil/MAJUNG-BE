@@ -35,6 +35,7 @@ public enum ErrorCode {
     NOT_OWNER_VIEW_INVITE_CODE(HttpStatus.FORBIDDEN, "그룹 코드는 방장만 확인할 수 있습니다."),
     NOT_OWNER_SELECT_MODE(HttpStatus.FORBIDDEN, "그룹 대표자만 모드를 확정할 수 있습니다."),
     NOT_OWNER_CREATE_TRIP(HttpStatus.FORBIDDEN, "그룹 대표자만 여행을 만들 수 있습니다."),
+    NOT_OWNER_END_MODE(HttpStatus.FORBIDDEN, "그룹 대표자만 모드를 종료할 수 있습니다."),
     OWNER_CANNOT_LEAVE(HttpStatus.CONFLICT, "그룹 대표자는 대표자 변경 후 탈퇴할 수 있습니다."),
 
     // 초대
@@ -49,6 +50,7 @@ public enum ErrorCode {
     UNSUPPORTED_MODE(HttpStatus.BAD_REQUEST, "지원하지 않는 모드입니다."),
     ACTIVE_TRIP_EXISTS(HttpStatus.CONFLICT, "아직 끝나지 않은 여행이 있습니다."),
     NO_ACTIVE_TRIP(HttpStatus.CONFLICT, "진행 중인 여행이 없습니다."),
+    MODE_NOT_SELECTED(HttpStatus.CONFLICT, "모드가 선택되지 않은 여행입니다."),
 
     // 취향
     INVALID_PREFERENCE(HttpStatus.BAD_REQUEST, "알 수 없는 카테고리이거나 알레르기·예산 값이 올바르지 않습니다."),

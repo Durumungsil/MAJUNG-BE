@@ -4,6 +4,7 @@ import durumungsil.majung.domain.group.dto.request.CreateGroupRequest;
 import durumungsil.majung.domain.group.dto.request.SelectModeRequest;
 import durumungsil.majung.domain.group.dto.request.UpdateGroupRequest;
 import durumungsil.majung.domain.group.dto.response.CreateGroupResponse;
+import durumungsil.majung.domain.group.dto.response.EndModeResponse;
 import durumungsil.majung.domain.group.dto.response.GroupDetailResponse;
 import durumungsil.majung.domain.group.dto.response.GroupListResponse;
 import durumungsil.majung.domain.group.dto.response.SelectModeResponse;
@@ -70,5 +71,11 @@ public class GroupController {
             @PathVariable Long groupId,
             @Valid @RequestBody SelectModeRequest request) {
         return ApiResponse.success("그룹 모드가 확정되었습니다.", tripService.selectMode(authUser.id(), groupId, request.mode()));
+    }
+
+    /** 모드 종료 - 진행 중인 여행 회차를 끝낸다 */
+    @PostMapping("/{groupId}/mode/end")
+    public ApiResponse<EndModeResponse> endMode(@AuthenticationPrincipal AuthUser authUser, @PathVariable Long groupId) {
+        return ApiResponse.success("모드가 종료되었습니다.", tripService.endMode(authUser.id(), groupId));
     }
 }

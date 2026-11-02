@@ -6,6 +6,7 @@ import durumungsil.majung.domain.group.entity.Group;
 import durumungsil.majung.domain.trip.entity.Trip;
 import durumungsil.majung.domain.trip.entity.TripMode;
 import durumungsil.majung.domain.trip.entity.TripStatus;
+import durumungsil.majung.domain.group.dto.response.EndModeResponse;
 import durumungsil.majung.domain.group.dto.response.SelectModeResponse;
 import durumungsil.majung.domain.trip.dto.request.CreateTripRequest;
 import durumungsil.majung.domain.trip.dto.response.TripListResponse;
@@ -38,6 +39,24 @@ public class TripService {
         trip.selectMode(mode);
         tripRepository.flush(); // updated_at 반영
         return SelectModeResponse.of(groupId, trip);
+    }
+
+    /**
+     * 모드 종료 (방장만) - 진행 중인 여행 회차를 COMPLETED 로 바꾼다.
+     * 스토리·모험·익스트림 모두 같은 API 로 끝내며, 종료 후에는 새 여행 회차를 만들 수 있다.
+     */
+    @Transactional
+    public EndModeResponse endMode(Long userId, Long groupId) {
+        Group group = groupReader.getMemberGroupForUpdate(groupId, userId);
+        groupReader.validateOwner(group, userId, ErrorCode.NOT_OWNER_END_MODE);
+
+        Trip trip = groupReader.getActiveTrip(groupId);
+        if (trip.getMode() == null) {
+            throw new BusinessException(ErrorCode.MODE_NOT_SELECTED);
+        }
+        trip.complete();
+        tripRepository.flush(); // updated_at 반영
+        return EndModeResponse.of(groupId, trip);
     }
 
     /** 여행 회차 생성 (방장만). 그룹당 진행 중인 여행은 하나만 */
