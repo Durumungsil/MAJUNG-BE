@@ -82,6 +82,17 @@ public class Trip {
         this.mode = mode;
     }
 
+    /** 모드 종료 - 여행 회차를 끝낸다. 이미 끝난 여행은 다시 끝낼 수 없다 */
+    public void complete() {
+        if (!isActive()) {
+            throw new IllegalStateException("이미 종료된 여행입니다.");
+        }
+        if (mode == null) {
+            throw new IllegalStateException("모드가 선택되지 않은 여행입니다.");
+        }
+        this.status = TripStatus.COMPLETED;
+    }
+
     /** 아직 끝나지 않은 여행(PLANNING 또는 IN_PROGRESS)인지 */
     public boolean isActive() {
         return status == TripStatus.PLANNING || status == TripStatus.IN_PROGRESS;
