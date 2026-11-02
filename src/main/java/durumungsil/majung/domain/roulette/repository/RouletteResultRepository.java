@@ -2,6 +2,7 @@ package durumungsil.majung.domain.roulette.repository;
 
 import durumungsil.majung.domain.roulette.entity.RouletteResult;
 import durumungsil.majung.domain.roulette.entity.RouletteType;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -11,4 +12,10 @@ public interface RouletteResultRepository extends JpaRepository<RouletteResult, 
     List<RouletteResult> findAllByTripIdAndTypeOrderByRoundAsc(Long tripId, RouletteType type);
 
     Optional<RouletteResult> findByIdAndTripGroupId(Long id, Long groupId);
+
+    Optional<RouletteResult> findByIdAndTripId(Long id, Long tripId);
+
+    Optional<RouletteResult>
+            findFirstByTripIdAndTypeAndConfirmedAtIsNotNullOrderByConfirmedAtDescIdDesc(
+                    Long tripId, RouletteType type);
 }

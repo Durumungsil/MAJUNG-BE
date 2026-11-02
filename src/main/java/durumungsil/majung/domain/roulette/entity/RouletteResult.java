@@ -14,11 +14,16 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 /** 여행지 룰렛 / 식당 룰렛 / 룰렛 결과 조회 */
 @Entity
 @Table(
         name = "roulette_results",
+        indexes =
+                @Index(
+                        name = "roulette_confirmed_lookup",
+                        columnList = "trip_id,type,confirmed_at DESC,id DESC"),
         uniqueConstraints = {
             @UniqueConstraint(columnNames = {"trip_id", "type", "round"}),
             @UniqueConstraint(columnNames = {"trip_id", "type", "google_place_id"})
@@ -52,6 +57,16 @@ public class RouletteResult {
     @CreationTimestamp
     @Column(name = "drawn_at", updatable = false)
     private Instant drawnAt;
+
+    @Column(name = "confirmed_at")
+    private Instant confirmedAt;
+
+    /** 재요청은 최초 확정 시각과 종류별 최신 확정 결과를 바꾸지 않는다. */
+    public void confirm() {
+        if (confirmedAt == null) {
+            confirmedAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        }
+    }
 
     @Builder
     private RouletteResult(

@@ -10,13 +10,15 @@ public record RouletteResultResponse(
         Long groupId,
         RouletteType type,
         RoulettePlaceResponse place,
-        Instant drawnAt) {
+        Instant drawnAt,
+        Instant confirmedAt) {
     public static RouletteResultResponse of(RouletteResult result) {
         return new RouletteResultResponse(
                 result.getId(),
                 result.getTrip().getGroup().getId(),
                 result.getType(),
                 RoulettePlaceResponse.of(result),
-                result.getDrawnAt());
+                result.getDrawnAt(),
+                result.getConfirmedAt());
     }
 }
