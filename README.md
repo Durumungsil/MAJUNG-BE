@@ -25,11 +25,11 @@ JDK 없이 도커만 있으면 API 서버를 띄울 수 있습니다. 프론트 
 
 ## 현재 k3s · Argo CD · Vault 배포
 
-배포 manifest는 형제 저장소 `../MAJUNG-DEPLOY`에서 관리합니다. 앱은 `durumungsil` namespace에 배포하며, 이 namespace와 그 안의 RBAC·ExternalSecret·라우팅, `durumungsil`에서만 쓸 수 있는 `vault` ClusterSecretStore도 MAJUNG-DEPLOY가 관리합니다. Vault·ESO·Traefik 설치와 Vault의 Kubernetes 인증 role은 인프라 소유입니다. Vault root 토큰·unseal 키·앱 비밀값을 Git 또는 GitHub Actions에 넣지 않습니다.
+배포 manifest는 형제 저장소 `../MAJUNG-DEPLOY`에서 관리합니다. 앱은 `durumungsil` namespace에 배포하며, 이 namespace와 그 안의 `vault-reader` ServiceAccount·RBAC·ExternalSecret·라우팅을 MAJUNG-DEPLOY가 관리합니다. Vault·ESO·Traefik 설치, 모든 앱이 함께 쓰는 `vault` ClusterSecretStore, Vault의 Kubernetes 인증 role·policy는 인프라 소유입니다. ESO는 이 namespace의 `vault-reader`로 Vault에 로그인하고, Vault는 그 로그인에 `secret/durumungsil/*`와 공용 `secret/github`만 허용합니다. Vault root 토큰·unseal 키·앱 비밀값을 Git 또는 GitHub Actions에 넣지 않습니다.
 
 ### 1. Vault 값 등록
 
-VPN에서 `https://10.42.1.0:8002`에 접속해 KV v2 엔진 `secret`에 다음 두 경로를 만듭니다.
+VPN에서 `https://10.42.1.0:8002`에 접속해 KV v2 엔진 `secret`에 다음 두 경로를 만듭니다. 앱 전용 값은 반드시 namespace 이름과 같은 `durumungsil/` 아래에 두며, 그 밖의 경로는 공용 `github`를 제외하고 읽을 수 없습니다.
 
 | 경로 | 필드 |
 | --- | --- |
