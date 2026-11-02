@@ -44,7 +44,7 @@ VPN에서 `https://10.42.1.0:8002`에 접속해 KV v2 엔진 `secret`에 다음 
 
 ### 2. GitHub Actions → 배포 저장소
 
-현재 `Durumungsil/MAJUNG-DEPLOY` GitHub 저장소가 없고 로컬 배포 저장소에도 remote가 없습니다. 먼저 이 이름으로 저장소를 만들고 로컬 manifest를 `main`에 올려야 합니다. 다른 이름이면 Actions의 `DEPLOY_REPOSITORY` 변수와 `argocd/majung-api.yaml`의 `repoURL`을 함께 수정합니다.
+배포 저장소는 `https://github.com/Durumungsil/MAJUNG-DEPLOY.git`이며 `main` 브랜치의 manifest를 사용합니다. 로컬 `MAJUNG-DEPLOY`의 `origin`도 이 주소로 등록합니다. 다른 저장소를 사용하려면 Actions의 `DEPLOY_REPOSITORY` 변수와 `argocd/majung-api.yaml`의 `repoURL`을 함께 수정합니다.
 
 BE 저장소의 Actions 설정:
 
