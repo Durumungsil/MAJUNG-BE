@@ -90,6 +90,21 @@ public class AdventureService {
                         .findById(processId)
                         .filter(value -> value.getTrip().getId().equals(trip.getId()))
                         .orElseThrow(() -> new BusinessException(ErrorCode.ADVENTURE_NOT_FOUND));
+        return processView(process);
+    }
+
+    /** 오늘(Asia/Seoul) 만든 커리큘럼. 미션을 모두 끝낸 뒤에도 여정 화면을 보여주도록 COMPLETED도 돌려준다. */
+    public ProcessView today(Long groupId) {
+        Trip trip = activeTrip(groupId);
+        AdventureProcess process =
+                processes
+                        .findByTripIdAndTravelDate(trip.getId(), settings.today())
+                        .orElseThrow(() -> new BusinessException(ErrorCode.ADVENTURE_NOT_FOUND));
+        return processView(process);
+    }
+
+    private ProcessView processView(AdventureProcess process) {
+        Long processId = process.getId();
         List<Mission> all = missions.findByProcessIdOrderByMissionOrderAsc(processId);
         int completed =
                 (int)

@@ -26,6 +26,7 @@ class AdventureSecurityTests {
         String base = "/api/v1/groups/1";
         String[][] routes = {
                 {"POST", "/adventure/process"}, {"GET", "/adventure/process/1"},
+                {"GET", "/adventure/process/today"},
                 {"GET", "/missions/current"}, {"POST", "/missions/1/start"},
                 {"GET", "/missions/1/hint"}, {"POST", "/missions/1/complete"}
         };
