@@ -72,7 +72,7 @@ jobs:
       - name: Check out deployment configuration
         uses: actions/checkout@v4
         with:
-          repository: ${{ vars.DEPLOY_REPOSITORY || format('{0}/MAJUNG-DEPLOY', github.repository_owner) }}
+          repository: ${{ vars.DEPLOY_REPOSITORY || 'parafara/durumungsil-backend-deploy' }}
           ref: ${{ vars.DEPLOY_REF || 'main' }}
           token: ${{ secrets.DEPLOY_REPO_TOKEN }}
           path: deploy

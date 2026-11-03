@@ -46,14 +46,14 @@ VPN에서 `https://10.42.1.0:8002`에 접속해 KV v2 엔진 `secret`에 다음 
 
 ### 2. GitHub Actions → 배포 저장소
 
-배포 저장소는 `https://github.com/Durumungsil/MAJUNG-DEPLOY.git`이며 `main` 브랜치의 manifest를 사용합니다. 로컬 `MAJUNG-DEPLOY`의 `origin`도 이 주소로 등록합니다. 다른 저장소를 사용하려면 Actions의 `DEPLOY_REPOSITORY` 변수와 Argo CD UI의 Application Source Repository URL을 함께 수정합니다.
+배포 저장소는 private `https://github.com/parafara/durumungsil-backend-deploy.git`이며 `main` 브랜치의 manifest를 사용합니다. 로컬 `MAJUNG-DEPLOY`의 `origin`도 이 주소로 등록합니다. 다른 저장소를 사용하려면 Actions의 `DEPLOY_REPOSITORY` 변수와 Argo CD UI의 Application Source Repository URL·저장소 인증을 함께 수정합니다.
 
 BE 저장소의 Actions 설정:
 
 | 구분 | 이름 | 용도 |
 | --- | --- | --- |
-| Secret | `DEPLOY_REPO_TOKEN` | 배포 저장소 한 곳의 Contents 읽기/쓰기 권한을 가진 토큰 |
-| Variable, 선택 | `DEPLOY_REPOSITORY` | 기본 `${저장소 소유자}/MAJUNG-DEPLOY` |
+| Secret | `DEPLOY_REPO_TOKEN` | `parafara/durumungsil-backend-deploy` 한 곳의 Contents 읽기/쓰기 권한만 가진 fine-grained 토큰. 저장소가 `parafara` 계정 소유이므로 그 계정에서 발급 |
+| Variable, 선택 | `DEPLOY_REPOSITORY` | 기본 `parafara/durumungsil-backend-deploy` |
 | Variable, 선택 | `DEPLOY_REF` | 기본 `main`; 변경 시 Argo CD `targetRevision`도 맞춤 |
 
 GHCR push는 workflow의 `GITHUB_TOKEN`과 `packages: write` 권한을 사용합니다. 최초 push 후 패키지 가시성·접근 권한을 확인하세요. `KUBE_CONFIG`, `INFRA_REPO_TOKEN`, `INFRA_REPOSITORY`는 이 workflow에서 사용하지 않습니다. GitHub-hosted runner를 VPN에 연결하거나 내부 Kubernetes API를 인터넷에 열 필요도 없습니다.
@@ -62,13 +62,13 @@ GHCR push는 workflow의 `GITHUB_TOKEN`과 `packages: write` 권한을 사용합
 
 ### 3. Argo CD 등록과 첫 실행
 
-이미지가 게시되고 배포 저장소에 digest가 기록된 뒤 Argo CD UI(`https://10.42.1.0:8001`)의 New App에서 아래 값으로 등록합니다. Application 정의는 UI에서 관리하며 배포 저장소에는 별도 `argocd/` 디렉토리를 두지 않습니다. Private 배포 저장소라면 먼저 Argo CD에 해당 저장소의 읽기 전용 인증을 등록합니다. 이 인증은 CI의 배포 저장소 쓰기 토큰과 별개입니다.
+이미지가 게시되고 배포 저장소에 digest가 기록된 뒤 Argo CD UI(`https://10.42.1.0:8001`)의 New App에서 아래 값으로 등록합니다. Application 정의는 UI에서 관리하며 배포 저장소에는 별도 `argocd/` 디렉토리를 두지 않습니다. 배포 저장소가 private이므로 Argo CD는 그 저장소의 read-only deploy key(인프라 README 참고)로 읽습니다. 이 인증은 CI의 배포 저장소 쓰기 토큰과 별개입니다.
 
 | 항목 | 값 |
 | --- | --- |
 | Application Name | `durumungsil` |
 | Project | `default` |
-| Repository URL | `https://github.com/Durumungsil/MAJUNG-DEPLOY.git` |
+| Repository URL | `git@github.com:parafara/durumungsil-backend-deploy.git` |
 | Revision | `main` |
 | Path | `kubernetes` |
 | Destination Cluster | `https://kubernetes.default.svc` |
