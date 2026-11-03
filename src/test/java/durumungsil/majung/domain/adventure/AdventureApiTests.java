@@ -93,6 +93,9 @@ class AdventureApiTests {
 
     @Test
     void sixApisCompleteTheCurriculumWithoutLeakingDestinationInformation() throws Exception {
+        mvc.perform(get(base() + "/adventure/process/today"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("커리큘럼을 찾을 수 없습니다."));
         JsonNode created = create(3);
         long processId = created.path("process_id").asLong();
         long first = created.path("first_mission_id").asLong();
@@ -123,6 +126,12 @@ class AdventureApiTests {
                                 .andExpect(status().isOk())
                                 .andReturn());
         long second = initial.path("missions").get(1).path("mission_id").asLong();
+        assertEquals(
+                initial,
+                data(
+                        mvc.perform(get(base() + "/adventure/process/today"))
+                                .andExpect(status().isOk())
+                                .andReturn()));
         assertEquals("LOCKED", initial.path("missions").get(1).path("status").asString());
         mvc.perform(
                         post(base() + "/missions/" + second + "/start")
@@ -206,6 +215,17 @@ class AdventureApiTests {
                         jsonPath("$.data.current_mission_id")
                                 .value(org.hamcrest.Matchers.nullValue()));
         mvc.perform(get(base() + "/missions/current")).andExpect(status().isNotFound());
+        // 미션을 다 끝낸 뒤에도 processId 없이 오늘 여정을 볼 수 있다.
+        mvc.perform(get(base() + "/adventure/process/today"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.process_id").value(processId))
+                .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.data.progress.completed").value(3))
+                .andExpect(jsonPath("$.data.progress.total").value(3))
+                .andExpect(
+                        jsonPath("$.data.current_mission_id")
+                                .value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.data.missions[2].status").value("COMPLETED"));
         mvc.perform(
                         post(base() + "/missions/" + first + "/complete")
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -276,6 +296,7 @@ class AdventureApiTests {
                                 .content("{\"travel_date\":\"2026-10-20\",\"mission_count\":1}"))
                 .andExpect(status().isCreated());
         mvc.perform(get(base() + "/missions/current")).andExpect(status().isNotFound());
+        mvc.perform(get(base() + "/adventure/process/today")).andExpect(status().isNotFound());
         long future = jdbc.queryForObject("select id from missions", Long.class);
         mvc.perform(
                         post(base() + "/missions/" + future + "/start")
@@ -283,8 +304,21 @@ class AdventureApiTests {
                                 .content(position()))
                 .andExpect(status().isConflict());
         mvc.perform(get(base() + "/missions/" + future + "/hint")).andExpect(status().isConflict());
-        create(1);
+        long todayProcess = create(1).path("process_id").asLong();
         mvc.perform(get(base() + "/missions/current")).andExpect(status().isOk());
+        mvc.perform(get(base() + "/adventure/process/today"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.process_id").value(todayProcess));
+    }
+
+    @Test
+    void todayCurriculumIsScopedToGroupAndRequiresAdventureMode() throws Exception {
+        create(1);
+        long otherGroup = seedGroup();
+        mvc.perform(get("/api/v1/groups/" + otherGroup + "/adventure/process/today"))
+                .andExpect(status().isNotFound());
+        jdbc.update("update trips set mode = 'STORY' where group_id = ?", groupId);
+        mvc.perform(get(base() + "/adventure/process/today")).andExpect(status().isConflict());
     }
 
     @Test

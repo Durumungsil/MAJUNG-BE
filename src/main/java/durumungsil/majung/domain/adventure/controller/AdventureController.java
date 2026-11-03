@@ -23,6 +23,12 @@ public class AdventureController {
         return ApiResponse.success("모험 커리큘럼이 생성되었습니다.", service.create(groupId, request));
     }
 
+    // 경로 변수보다 고정 경로가 우선이라 {processId}와 겹치지 않는다.
+    @GetMapping("/adventure/process/today")
+    public ApiResponse<ProcessView> today(@PathVariable Long groupId) {
+        return ApiResponse.success("오늘 모험 커리큘럼을 조회했습니다.", service.today(groupId));
+    }
+
     @GetMapping("/adventure/process/{processId}")
     public ApiResponse<ProcessView> progress(
             @PathVariable Long groupId, @PathVariable Long processId) {
