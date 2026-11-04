@@ -25,7 +25,7 @@ JDK 없이 도커만 있으면 API 서버를 띄울 수 있습니다. 프론트 
 
 ## 현재 k3s · Argo CD · Vault 배포
 
-배포 manifest는 형제 저장소 `../MAJUNG-DEPLOY`에서 관리합니다. 앱은 `durumungsil` namespace에 배포하며, 이 namespace와 그 안의 `vault-reader` ServiceAccount·RBAC·ExternalSecret·라우팅을 MAJUNG-DEPLOY가 관리합니다. Vault·ESO·Traefik 설치, 모든 앱이 함께 쓰는 `vault` ClusterSecretStore, Vault의 Kubernetes 인증 role·policy는 인프라 소유입니다. ESO는 이 namespace의 `vault-reader`로 Vault에 로그인하고, Vault는 그 로그인에 `secret/durumungsil/*`만 허용합니다. Vault root 토큰·unseal 키·앱 비밀값을 Git 또는 GitHub Actions에 넣지 않습니다.
+배포 manifest는 형제 저장소 `../MAJUNG-DEPLOY`에서 관리합니다. 앱은 `durumungsil` namespace에 배포합니다. namespace(Pod Security `restricted`)와 Argo CD 프로젝트 `durumungsil`은 인프라 소유이고, 그 안의 `vault-reader` ServiceAccount·RBAC·ExternalSecret·라우팅을 MAJUNG-DEPLOY가 관리합니다. 프로젝트는 MAJUNG-DEPLOY 저장소에서 `durumungsil` namespace의 namespaced 리소스만 배포하도록 제한하므로, 새 리소스 종류가 필요하면 인프라의 AppProject도 함께 바꿔야 합니다. Vault·ESO·Traefik 설치, 모든 앱이 함께 쓰는 `vault` ClusterSecretStore, Vault의 Kubernetes 인증 role·policy는 인프라 소유입니다. ESO는 이 namespace의 `vault-reader`로 Vault에 로그인하고, Vault는 그 로그인에 `secret/durumungsil/*`만 허용합니다. Vault root 토큰·unseal 키·앱 비밀값을 Git 또는 GitHub Actions에 넣지 않습니다.
 
 ### 1. Vault 값 등록
 
@@ -66,7 +66,7 @@ GHCR push는 workflow의 `GITHUB_TOKEN`과 `packages: write` 권한을 사용합
 | 항목 | 값 |
 | --- | --- |
 | Application Name | `durumungsil` |
-| Project | `default` |
+| Project | `durumungsil` |
 | Repository URL | `git@github.com:parafara/durumungsil-backend-deploy.git` |
 | Revision | `main` |
 | Path | `kubernetes` |
