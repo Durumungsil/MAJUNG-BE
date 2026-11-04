@@ -25,24 +25,23 @@ JDK 없이 도커만 있으면 API 서버를 띄울 수 있습니다. 프론트 
 
 ## 현재 k3s · Argo CD · Vault 배포
 
-배포 manifest는 형제 저장소 `../MAJUNG-DEPLOY`에서 관리합니다. 앱은 `durumungsil` namespace에 배포하며, 이 namespace와 그 안의 `vault-reader` ServiceAccount·RBAC·ExternalSecret·라우팅을 MAJUNG-DEPLOY가 관리합니다. Vault·ESO·Traefik 설치, 모든 앱이 함께 쓰는 `vault` ClusterSecretStore, Vault의 Kubernetes 인증 role·policy는 인프라 소유입니다. ESO는 이 namespace의 `vault-reader`로 Vault에 로그인하고, Vault는 그 로그인에 `secret/durumungsil/*`와 모든 앱 공용 `secret/global/*`만 허용합니다. Vault root 토큰·unseal 키·앱 비밀값을 Git 또는 GitHub Actions에 넣지 않습니다.
+배포 manifest는 형제 저장소 `../MAJUNG-DEPLOY`에서 관리합니다. 앱은 `durumungsil` namespace에 배포하며, 이 namespace와 그 안의 `vault-reader` ServiceAccount·RBAC·ExternalSecret·라우팅을 MAJUNG-DEPLOY가 관리합니다. Vault·ESO·Traefik 설치, 모든 앱이 함께 쓰는 `vault` ClusterSecretStore, Vault의 Kubernetes 인증 role·policy는 인프라 소유입니다. ESO는 이 namespace의 `vault-reader`로 Vault에 로그인하고, Vault는 그 로그인에 `secret/durumungsil/*`만 허용합니다. Vault root 토큰·unseal 키·앱 비밀값을 Git 또는 GitHub Actions에 넣지 않습니다.
 
 ### 1. Vault 값 등록
 
-VPN에서 `https://10.42.1.0:8002`에 접속해 KV v2 엔진 `secret`에 다음 두 경로를 만듭니다. 앱 전용 값은 반드시 namespace 이름과 같은 `durumungsil/` 아래에, 여러 앱이 함께 쓰는 값은 `global/` 아래에 두며, 그 밖의 경로는 읽을 수 없습니다.
+VPN에서 `https://10.42.1.0:8002`에 접속해 KV v2 엔진 `secret`에 다음 경로를 만듭니다. 값은 반드시 namespace 이름과 같은 `durumungsil/` 아래에 두며, 그 밖의 경로는 읽을 수 없습니다.
 
 | 경로 | 필드 |
 | --- | --- |
 | `durumungsil/backend` | 필수: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `GOOGLE_CLIENT_IDS` |
-| `global/github` | 공용. `username`: GHCR 계정명, `token`: 해당 패키지의 `read:packages` 권한이 있는 pull 전용 PAT(classic) |
 
 `DB_URL`은 JDBC URL이며 JWT 키는 32바이트 이상입니다. 선택 필드 `GEMINI_API_KEY`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_PLACES_CURSOR_SECRET`도 `durumungsil/backend` 경로에 저장할 수 있습니다. 생략하면 기존 앱 기본값을 사용하며, Places 키가 없으면 Places 기능은 사용할 수 없습니다. `GOOGLE_CLIENT_IDS`는 실제 클라이언트 ID들을 콤마로 구분합니다.
 
 일반 설정은 `MAJUNG-DEPLOY/kubernetes/kustomization.yaml`의 ConfigMap으로 관리합니다. `PORT=8080`, `JPA_DDL_AUTO=validate`, 작은 DB 풀을 유지합니다. 실제 프론트 주소를 쓰기 전 `CORS_ALLOWED_ORIGINS`를 명시하고, 유료 Gemini 사용 확인 전 `GEMINI_PAID_TIER_CONFIRMED=false`를 유지합니다. `durumungsil/backend`에는 위 앱 필드만 넣어 ConfigMap의 일반 설정을 덮어쓰지 않게 합니다. 개발용 `.env`는 자동 업로드되지 않습니다.
 
-`external-secrets.yaml`이 앱 환경변수용 `durumungsil-api-secret`과 이미지 다운로드용 `durumungsil-ghcr-pull-secret`을 생성합니다. GHCR 토큰은 JSON template으로 dockerconfigjson Secret이 되며 앱 컨테이너의 환경변수에는 들어가지 않습니다. GHCR pull에는 `read:packages` 권한이 있는 PAT(classic)을 사용합니다. Fine-grained PAT로 Vault 동기화가 성공해도 GHCR 패키지 접근에서 403이 발생할 수 있습니다. private 패키지라면 토큰 계정에 패키지 읽기 권한과 필요한 조직 SSO 승인이 있어야 합니다. Public 패키지로 바꾸고 pull 인증을 제거하려면 Deployment의 `imagePullSecrets`와 해당 ExternalSecret을 함께 제거합니다.
+`external-secrets.yaml`이 앱 환경변수용 `durumungsil-api-secret`을 생성합니다. 이미지 `ghcr.io/durumungsil/majung-be`는 public 패키지라 pull 자격증명 없이 받으므로 Deployment에 `imagePullSecrets`가 없습니다. 패키지를 private으로 되돌리면 pull Secret이 다시 필요합니다.
 
-`could not get secret data from provider`가 발생하면 ClusterSecretStore의 Ready만으로 성공을 판단하지 말고 각 ExternalSecret의 Ready를 확인합니다. 앱은 `durumungsil/backend`, registry는 공용 `global/github`를 읽습니다. registry 경로가 없으면 앱 Secret이 정상이어도 pull Secret 생성에 실패하고 첫 배포의 sync-wave가 막힙니다. 실제 값은 Vault UI에만 입력하고 토큰을 Git·채팅에 붙여넣지 마세요. manifest의 Vault 경로를 수정했다면 배포 저장소에 커밋·푸시한 뒤 Argo CD에서 Sync/Retry해야 하며, 클러스터만 임시 수정하면 다음 Git 동기화에서 이전 경로로 돌아갈 수 있습니다.
+`could not get secret data from provider`가 발생하면 ClusterSecretStore의 Ready만으로 성공을 판단하지 말고 각 ExternalSecret의 Ready를 확인합니다. 앱은 `durumungsil/backend`를 읽습니다. 이 경로가 없으면 Secret 생성에 실패하고 첫 배포의 sync-wave가 막힙니다. 실제 값은 Vault UI에만 입력하고 토큰을 Git·채팅에 붙여넣지 마세요. manifest의 Vault 경로를 수정했다면 배포 저장소에 커밋·푸시한 뒤 Argo CD에서 Sync/Retry해야 하며, 클러스터만 임시 수정하면 다음 Git 동기화에서 이전 경로로 돌아갈 수 있습니다.
 
 ### 2. GitHub Actions → 배포 저장소
 
@@ -56,7 +55,7 @@ BE 저장소의 Actions 설정:
 | Variable, 선택 | `DEPLOY_REPOSITORY` | 기본 `parafara/durumungsil-backend-deploy` |
 | Variable, 선택 | `DEPLOY_REF` | 기본 `main`; 변경 시 Argo CD `targetRevision`도 맞춤 |
 
-GHCR push는 workflow의 `GITHUB_TOKEN`과 `packages: write` 권한을 사용합니다. 최초 push 후 패키지 가시성·접근 권한을 확인하세요. `KUBE_CONFIG`, `INFRA_REPO_TOKEN`, `INFRA_REPOSITORY`는 이 workflow에서 사용하지 않습니다. GitHub-hosted runner를 VPN에 연결하거나 내부 Kubernetes API를 인터넷에 열 필요도 없습니다.
+GHCR push는 workflow의 `GITHUB_TOKEN`과 `packages: write` 권한을 사용합니다. 패키지는 public이어야 클러스터가 인증 없이 받을 수 있습니다. `KUBE_CONFIG`, `INFRA_REPO_TOKEN`, `INFRA_REPOSITORY`는 이 workflow에서 사용하지 않습니다. GitHub-hosted runner를 VPN에 연결하거나 내부 Kubernetes API를 인터넷에 열 필요도 없습니다.
 
 `main` push → BE의 로컬 `Dockerfile`로 amd64/arm64 이미지 빌드 → GHCR push → 배포 저장소 `kubernetes/deployment.yaml`을 `image@sha256:…`로 갱신·commit/push합니다. 같은 digest이면 commit하지 않습니다. 배포 저장소 branch protection이 봇의 직접 push를 막으면 해당 토큰의 제한된 봇 push를 허용하거나 PR 기반 운영으로 변경해야 합니다. 앱 비밀값은 빌드 인자나 이미지에 넣지 않습니다.
 
@@ -79,7 +78,7 @@ Application은 `main`의 `kubernetes`를 감시해 현재 클러스터의 `durum
 
 ```bash
 kubectl get clustersecretstore vault
-kubectl -n durumungsil get externalsecret durumungsil-api-secret durumungsil-ghcr-pull-secret
+kubectl -n durumungsil get externalsecret durumungsil-api-secret
 kubectl -n durumungsil rollout status deployment/durumungsil-api --timeout=600s
 kubectl -n durumungsil port-forward service/durumungsil-api 8080:80
 ```
