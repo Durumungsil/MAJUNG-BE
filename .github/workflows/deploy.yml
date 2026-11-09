@@ -74,7 +74,7 @@ jobs:
         with:
           repository: ${{ vars.DEPLOY_REPOSITORY || 'parafara/durumungsil-backend-deploy' }}
           ref: ${{ vars.DEPLOY_REF || 'main' }}
-          token: ${{ secrets.DEPLOY_REPO_TOKEN }}
+          ssh-key: ${{ secrets.DURUMUNGSIL_DEPLOY_KEY }}
           path: deploy
 
       - name: Set up kubectl

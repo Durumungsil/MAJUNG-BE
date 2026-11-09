@@ -51,17 +51,21 @@ BE 저장소의 Actions 설정:
 
 | 구분 | 이름 | 용도 |
 | --- | --- | --- |
-| Secret | `DEPLOY_REPO_TOKEN` | `parafara/durumungsil-backend-deploy` 한 곳의 Contents 읽기/쓰기 권한만 가진 fine-grained 토큰. 저장소가 `parafara` 계정 소유이므로 그 계정에서 발급 |
+| Secret | `DURUMUNGSIL_DEPLOY_KEY` | `parafara/durumungsil-backend-deploy` 전용 쓰기 SSH deploy key의 개인키. `production` environment secret으로 등록 |
 | Variable, 선택 | `DEPLOY_REPOSITORY` | 기본 `parafara/durumungsil-backend-deploy` |
 | Variable, 선택 | `DEPLOY_REF` | 기본 `main`; 변경 시 Argo CD `targetRevision`도 맞춤 |
 
+배포 전용 SSH 키 한 쌍을 생성하고 공개키를 배포 저장소 Settings → Deploy keys에 `Allow write access`로 등록합니다. 개인키는 BE 저장소의 `production` environment에 `DURUMUNGSIL_DEPLOY_KEY` secret으로 등록합니다. 키를 Git이나 로그에 남기지 마세요. 기존 `DEPLOY_REPO_TOKEN`은 더 이상 사용하지 않으며 다른 workflow에서도 쓰지 않으면 삭제합니다.
+
+이 키는 배포 저장소 한 곳에만 접근하지만, secret을 받는 workflow는 키를 사용하거나 외부로 전송할 수 있습니다. workflow 변경 권한과 `production` environment의 배포 승인 정책을 함께 관리해야 합니다.
+
 GHCR push는 workflow의 `GITHUB_TOKEN`과 `packages: write` 권한을 사용합니다. 패키지는 public이어야 클러스터가 인증 없이 받을 수 있습니다. `KUBE_CONFIG`, `INFRA_REPO_TOKEN`, `INFRA_REPOSITORY`는 이 workflow에서 사용하지 않습니다. GitHub-hosted runner를 VPN에 연결하거나 내부 Kubernetes API를 인터넷에 열 필요도 없습니다.
 
-`main` push → BE의 로컬 `Dockerfile`로 amd64/arm64 이미지 빌드 → GHCR push → 배포 저장소 `kubernetes/deployment.yaml`을 `image@sha256:…`로 갱신·commit/push합니다. 같은 digest이면 commit하지 않습니다. 배포 저장소 branch protection이 봇의 직접 push를 막으면 해당 토큰의 제한된 봇 push를 허용하거나 PR 기반 운영으로 변경해야 합니다. 앱 비밀값은 빌드 인자나 이미지에 넣지 않습니다.
+`main` push → BE의 로컬 `Dockerfile`로 amd64/arm64 이미지 빌드 → GHCR push → 배포 저장소 `kubernetes/deployment.yaml`을 `image@sha256:…`로 갱신·commit/push합니다. 같은 digest이면 commit하지 않습니다. 배포 저장소 branch protection이 deploy key의 직접 push를 막으면 정책에 맞는 push 권한을 설정하거나 PR 기반 운영으로 변경해야 합니다. 앱 비밀값은 빌드 인자나 이미지에 넣지 않습니다.
 
 ### 3. Argo CD 등록과 첫 실행
 
-이미지가 게시되고 배포 저장소에 digest가 기록된 뒤 Argo CD UI(`https://10.42.1.0:8001`)의 New App에서 아래 값으로 등록합니다. Application 정의는 UI에서 관리하며 배포 저장소에는 별도 `argocd/` 디렉토리를 두지 않습니다. 배포 저장소가 private이므로 Argo CD는 그 저장소의 read-only deploy key(인프라 README 참고)로 읽습니다. 이 인증은 CI의 배포 저장소 쓰기 토큰과 별개입니다.
+이미지가 게시되고 배포 저장소에 digest가 기록된 뒤 Argo CD UI(`https://10.42.1.0:8001`)의 New App에서 아래 값으로 등록합니다. Application 정의는 UI에서 관리하며 배포 저장소에는 별도 `argocd/` 디렉토리를 두지 않습니다. 배포 저장소가 private이므로 Argo CD에는 별도의 읽기 전용 저장소 인증(인프라 README 참고)이 필요합니다. 이 인증은 CI의 배포 저장소 쓰기 deploy key와 별개입니다.
 
 | 항목 | 값 |
 | --- | --- |
