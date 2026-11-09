@@ -84,6 +84,7 @@ public enum ErrorCode {
 
     // 모험모드
     ADVENTURE_CONDITION_UNSATISFIED(HttpStatus.CONFLICT, "그룹 최소 조건을 만족하는 커리큘럼을 생성할 수 없습니다."),
+    ADVENTURE_REGION_UNSUPPORTED(HttpStatus.BAD_REQUEST, "모험모드에서 지원하지 않는 여행 지역입니다. '부산', '부산 부산진구', '서면'처럼 입력해 주세요."),
     ADVENTURE_ALREADY_EXISTS(HttpStatus.CONFLICT, "해당 날짜의 커리큘럼이 이미 있습니다."),
     ADVENTURE_NOT_FOUND(HttpStatus.NOT_FOUND, "커리큘럼을 찾을 수 없습니다."),
     ADVENTURE_GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "그룹을 찾을 수 없습니다."),

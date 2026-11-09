@@ -22,16 +22,31 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
         return PageRequest.of(0, MAX_REGION_CANDIDATES);
     }
 
-    /** 모험 미션용 - 지역과 업종이 맞는 장소를 평점 높은 순(평점 없으면 뒤로)으로. 개수는 {@link #regionCandidateLimit()} 로 자른다. */
+    /** 모험 미션용 - 시·도와 업종이 맞는 장소를 평점 높은 순(평점 없으면 뒤로)으로. 개수는 {@link #regionCandidateLimit()} 로 자른다. */
     @Query(
             """
             select s from Store s
-            where (s.sido in :regions or s.sigungu in :regions)
+            where s.sido in :regions
               and s.destinationType in :types
             order by s.rating desc nulls last, s.destinationId
             """)
     List<Store> findInRegionsAndTypes(
             @Param("regions") Collection<String> regions,
+            @Param("types") Collection<Type> types,
+            Pageable limit);
+
+    /** 모험 미션용 - 시·도와 구·군을 함께 맞춘다. 중구·서구처럼 여러 시에 있는 구가 섞이지 않게 한다. */
+    @Query(
+            """
+            select s from Store s
+            where s.sido in :regions
+              and s.sigungu = :sigungu
+              and s.destinationType in :types
+            order by s.rating desc nulls last, s.destinationId
+            """)
+    List<Store> findInDistrictAndTypes(
+            @Param("regions") Collection<String> regions,
+            @Param("sigungu") String sigungu,
             @Param("types") Collection<Type> types,
             Pageable limit);
 }

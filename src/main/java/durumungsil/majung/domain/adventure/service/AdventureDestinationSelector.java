@@ -47,6 +47,10 @@ public class AdventureDestinationSelector {
     }
 
     private List<Store> candidates(Trip trip) {
+        RegionAliases.Scope scope =
+                RegionAliases.resolve(trip.getRegion())
+                        .orElseThrow(
+                                () -> new BusinessException(ErrorCode.ADVENTURE_REGION_UNSUPPORTED));
         Long groupId = trip.getGroup().getId();
         List<Preference> opinions = preferences.findAllOfCurrentMembers(trip.getId(), groupId);
         long memberCount = members.countByGroupId(groupId);
@@ -85,11 +89,6 @@ public class AdventureDestinationSelector {
                             .orElseThrow(() -> unsatisfied());
             excludedTypes.add(type);
         }
-        if (trip.getRegion() == null || trip.getRegion().isBlank()) {
-            throw unsatisfied();
-        }
-        String region = trip.getRegion().trim();
-        List<String> aliases = RegionAliases.of(region);
         int mealBudget = budget;
         // 모험은 숙박·전문 기술 업종을 항상 제외한다.
         Set<Type> allowedTypes = EnumSet.allOf(Type.class);
@@ -101,12 +100,7 @@ public class AdventureDestinationSelector {
         }
         List<Store> candidates =
                 new ArrayList<>(
-                        stores
-                                .findInRegionsAndTypes(
-                                        aliases,
-                                        allowedTypes,
-                                        StoreRepository.regionCandidateLimit())
-                                .stream()
+                        findInScope(scope, allowedTypes).stream()
                                 .filter(
                                         store ->
                                                 store.getDestinationType() != null
@@ -122,6 +116,15 @@ public class AdventureDestinationSelector {
                                                         || store.isWithinBudget(mealBudget))
                                 .toList());
         return candidates;
+    }
+
+    private List<Store> findInScope(RegionAliases.Scope scope, Set<Type> types) {
+        if (scope.sigungu() == null) {
+            return stores.findInRegionsAndTypes(
+                    scope.sidos(), types, StoreRepository.regionCandidateLimit());
+        }
+        return stores.findInDistrictAndTypes(
+                scope.sidos(), scope.sigungu(), types, StoreRepository.regionCandidateLimit());
     }
 
     static final double MAX_WALKING_LEG_METERS = 2_000;

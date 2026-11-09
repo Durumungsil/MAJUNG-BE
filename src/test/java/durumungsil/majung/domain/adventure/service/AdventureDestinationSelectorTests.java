@@ -17,6 +17,7 @@ import durumungsil.majung.domain.store.repository.StoreRepository;
 import durumungsil.majung.domain.trip.entity.*;
 import durumungsil.majung.domain.trip.repository.*;
 import durumungsil.majung.global.exception.BusinessException;
+import durumungsil.majung.global.exception.ErrorCode;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -143,6 +144,29 @@ class AdventureDestinationSelectorTests {
                                 store(Type.SCIENCE_TECHNOLOGY, null)));
         assertEquals(2, selector.select(trip, 2).size());
         assertThrows(BusinessException.class, () -> selector.select(trip, 3));
+    }
+
+    @Test
+    void queriesDistrictTogetherWithCityAndRejectsUnknownRegion() {
+        when(preferences.findAllOfCurrentMembers(2L, 1L))
+                .thenReturn(List.of(Preference.builder().build()));
+        Store spot = store(Type.ART_SPORTS, null);
+        when(stores.findInDistrictAndTypes(anyList(), eq("부산진구"), anyCollection(), any(Pageable.class)))
+                .thenReturn(List.of(spot));
+        trip.changeRegion("서면");
+        assertEquals(List.of(spot), selector.select(trip, 1));
+        verify(stores)
+                .findInDistrictAndTypes(
+                        eq(List.of("BUSAN", "부산", "부산광역시")),
+                        eq("부산진구"),
+                        anyCollection(),
+                        eq(StoreRepository.regionCandidateLimit()));
+        verify(stores, never()).findInRegionsAndTypes(anyList(), anyCollection(), any(Pageable.class));
+
+        trip.changeRegion("중구");
+        BusinessException ambiguous =
+                assertThrows(BusinessException.class, () -> selector.select(trip, 1));
+        assertEquals(ErrorCode.ADVENTURE_REGION_UNSUPPORTED, ambiguous.getErrorCode());
     }
 
     @Test

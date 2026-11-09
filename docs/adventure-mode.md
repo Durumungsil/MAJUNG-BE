@@ -12,6 +12,7 @@
 | --- | --- | --- | --- |
 | POST | `/adventure/process` | `travel_date`, `mission_count` | 201, 생성 정보와 첫 미션 ID |
 | GET | `/adventure/process/{processId}` | 없음 | 200, 상태·진행도·순서별 미션 상태 |
+| GET | `/adventure/process/today` | 없음 | 200, 오늘 커리큘럼의 상태·진행도·순서별 미션 상태(`{processId}` 조회와 같은 형태) |
 | GET | `/missions/current` | 없음 | 200, 오늘의 AVAILABLE 미션 |
 | POST | `/missions/{missionId}/start` | `latitude`, `longitude` | 200, 최초 시작 시각 |
 | GET | `/missions/{missionId}/hint` | 없음 | 200, 장소 좌표·표시 시간·누적 사용 횟수 |
@@ -25,6 +26,7 @@
 
 - 그룹의 PLANNING 또는 IN_PROGRESS 여행 회차를 사용하며 모드는 ADVENTURE여야 한다. 미완료 여행이 여러 개면 데이터 충돌로 409를 반환한다.
 - 커리큘럼은 여행 기간 안의 날짜별로 하나만 생성한다. 다시 생성하면 409다. 장소는 중복 없이 뽑으며, 첫 미션만 AVAILABLE이고 이후 미션은 LOCKED다.
+- `/adventure/process/today`는 오늘(`Asia/Seoul`) 날짜의 커리큘럼을 processId 없이 조회한다. 팀원·다른 기기에서도 "나의 여정"을 볼 수 있게 하기 위해서다. 오늘 커리큘럼이 없으면 404(`커리큘럼을 찾을 수 없습니다.`), 미션을 모두 끝낸 COMPLETED 커리큘럼도 200으로 돌려준다(`missions/current`는 이때 404).
 - 현재 미션의 날짜는 `Asia/Seoul` 기준이다. 시작·힌트·완료도 오늘의 미션에서만 가능하다. 미래 날짜의 커리큘럼 생성과 진행도 조회는 가능하다.
 - 시작 시 서버의 UTC 시각과 출발 좌표를 보존한다. 시작·완료 시각은 DB와 동일한 마이크로초 정밀도로 저장·응답하며, 재시작 요청은 최초 기록을 돌려준다.
 - 힌트마다 횟수를 1 증가시킨다. 잠기거나 완료된 미션은 힌트를 볼 수 없다. 표시 시간 후 로드뷰 닫기는 프론트에서 처리한다.
