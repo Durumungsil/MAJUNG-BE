@@ -2,6 +2,7 @@ package durumungsil.majung.domain.story.controller;
 
 import durumungsil.majung.domain.story.dto.request.CreateTimelineRequest;
 import durumungsil.majung.domain.story.dto.request.UpdateTimelineItemRequest;
+import durumungsil.majung.domain.story.dto.response.ConfirmTimelineResponse;
 import durumungsil.majung.domain.story.dto.response.TimelineResponse;
 import durumungsil.majung.domain.story.dto.response.UpdateTimelineItemResponse;
 import durumungsil.majung.global.response.ApiResponse;
@@ -47,6 +48,16 @@ public class ItineraryController {
             @PathVariable Long itineraryId) {
         return ApiResponse.success("여행 타임라인을 조회했습니다.",
                 itineraryService.getTimeline(authUser.id(), groupId, itineraryId));
+    }
+
+    /** 타임라인 확정 - 여행을 IN_PROGRESS 로 바꾼다 (방장만) */
+    @PostMapping("/{itineraryId}/confirm")
+    public ApiResponse<ConfirmTimelineResponse> confirmTimeline(
+            @AuthenticationPrincipal AuthUser authUser,
+            @PathVariable Long groupId,
+            @PathVariable Long itineraryId) {
+        return ApiResponse.success("타임라인이 확정되었습니다.",
+                itineraryService.confirmTimeline(authUser.id(), groupId, itineraryId));
     }
 
     /** 타임라인 항목 수정 */

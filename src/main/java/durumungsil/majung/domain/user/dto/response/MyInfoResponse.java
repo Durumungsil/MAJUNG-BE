@@ -8,9 +8,11 @@ public record MyInfoResponse(
         Long userId,
         String email,
         String userName,
+        String profileImageUrl,
         LocalDateTime createdAt
 ) {
     public static MyInfoResponse from(User user) {
-        return new MyInfoResponse(user.getId(), user.getEmail(), user.getUserName(), user.getCreatedAt());
+        return new MyInfoResponse(user.getId(), user.getEmail(), user.getUserName(), user.getProfileImageUrl(),
+                user.getCreatedAt());
     }
 }

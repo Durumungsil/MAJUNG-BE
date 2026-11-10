@@ -19,6 +19,9 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
 
     boolean existsByGroupIdAndStatusIn(Long groupId, Collection<TripStatus> statuses);
 
+    /** 영속성 컨텍스트에 남은 값이 아니라 DB 의 현재 상태로 확인할 때 사용 */
+    boolean existsByIdAndStatus(Long id, TripStatus status);
+
     /** 그룹의 여행 회차 최신순 */
     List<Trip> findAllByGroupIdOrderByIdDesc(Long groupId);
 

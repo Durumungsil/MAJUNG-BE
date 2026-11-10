@@ -120,7 +120,9 @@ public class GroupService {
                 trip == null
                         ? 0
                         : preferenceRepository.countOfCurrentMembers(trip.getId(), groupId);
-        return GroupDetailResponse.of(group, trip, preferencesCompleted);
+        boolean myPreferencesCompleted =
+                trip != null && preferenceRepository.existsByTripIdAndUserId(trip.getId(), userId);
+        return GroupDetailResponse.of(group, trip, preferencesCompleted, myPreferencesCompleted);
     }
 
     /** 그룹 설정 수정 (방장만). 보낸 필드만 반영한다 */

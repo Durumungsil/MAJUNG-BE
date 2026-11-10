@@ -167,6 +167,32 @@ class GroupRegressionTests {
                 new SavePreferenceRequest(List.of("BUS"), List.of(), List.of(), List.of("EXPERIENCE"), null)));
     }
 
+    @Test
+    void groupDetailTellsWhetherTheViewerSubmittedPreferences() {
+        Fixture data = seed();
+        long member = tx.execute(status -> {
+            User user = User.builder().googleSub(UUID.randomUUID().toString()).userName("멤버").build();
+            em.persist(user);
+            Group group = em.find(Group.class, data.group());
+            em.persist(GroupMember.builder().group(group).user(user).build());
+            return user.getId();
+        });
+
+        var before = groupService.getGroup(data.owner(), data.group());
+        assertFalse(before.myPreferencesCompleted());
+        assertEquals(0, before.preferencesCompleted());
+
+        preferences.savePreference(data.owner(), data.group(), preference("BUS"));
+
+        // 설문을 낸 방장은 true, 아직 안 낸 멤버는 완료 인원이 1이어도 false
+        var owner = groupService.getGroup(data.owner(), data.group());
+        assertTrue(owner.myPreferencesCompleted());
+        assertEquals(1, owner.preferencesCompleted());
+        var other = groupService.getGroup(member, data.group());
+        assertFalse(other.myPreferencesCompleted());
+        assertEquals(1, other.preferencesCompleted());
+    }
+
     private static SavePreferenceRequest preference(String transport) {
         return new SavePreferenceRequest(List.of(transport), List.of(), List.of(), List.of("FOOD"),
                 new SavePreferenceRequest.Budget(10000));

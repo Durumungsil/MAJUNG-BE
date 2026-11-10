@@ -32,24 +32,32 @@ public class User {
     @Column(name = "user_name")
     private String userName;
 
+    /** 구글 idToken 의 picture 클레임 (구글 프로필 사진 URL). 사진이 없으면 null */
+    @Column(name = "profile_image_url", length = 2048)
+    private String profileImageUrl;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @Builder
-    private User(String googleSub, String email, String userName) {
+    private User(String googleSub, String email, String userName, String profileImageUrl) {
         this.googleSub = googleSub;
         this.email = email;
         this.userName = userName;
+        this.profileImageUrl = profileImageUrl;
     }
 
     /** 구글 로그인할 때마다 최신 프로필로 갱신 (값이 없으면 기존 값 유지) */
-    public void updateProfile(String email, String userName) {
+    public void updateProfile(String email, String userName, String profileImageUrl) {
         if (email != null) {
             this.email = email;
         }
         if (userName != null) {
             this.userName = userName;
+        }
+        if (profileImageUrl != null) {
+            this.profileImageUrl = profileImageUrl;
         }
     }
 }

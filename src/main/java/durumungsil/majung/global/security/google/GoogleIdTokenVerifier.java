@@ -66,6 +66,7 @@ public class GoogleIdTokenVerifier {
             log.warn("구글 idToken 검증 중 오류", e);
             throw new BusinessException(ErrorCode.GOOGLE_AUTH_UNAVAILABLE);
         }
-        return new GoogleUserInfo(jwt.getSubject(), jwt.getClaimAsString("email"), jwt.getClaimAsString("name"));
+        return new GoogleUserInfo(jwt.getSubject(), jwt.getClaimAsString("email"), jwt.getClaimAsString("name"),
+                jwt.getClaimAsString("picture"));
     }
 }

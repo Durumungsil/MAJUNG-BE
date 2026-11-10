@@ -13,6 +13,8 @@ public interface PreferenceRepository extends JpaRepository<Preference, Long> {
 
     Optional<Preference> findByTripIdAndUserId(Long tripId, Long userId);
 
+    boolean existsByTripIdAndUserId(Long tripId, Long userId);
+
     /** 해당 여행 회차에서 취향을 입력한 사용자 id 들 */
     @Query("select p.user.id from Preference p where p.trip.id = :tripId")
     List<Long> findUserIdsByTripId(@Param("tripId") Long tripId);

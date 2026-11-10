@@ -1,5 +1,6 @@
 package durumungsil.majung.domain.story.service;
 
+import durumungsil.majung.domain.group.entity.Group;
 import durumungsil.majung.domain.group.service.GroupReader;
 import durumungsil.majung.domain.place.PlanningPlace;
 import durumungsil.majung.domain.place.entity.GooglePlace;
@@ -10,6 +11,7 @@ import durumungsil.majung.domain.preference.entity.TravelCategory;
 import durumungsil.majung.domain.preference.repository.PreferenceRepository;
 import durumungsil.majung.domain.story.dto.request.CreateTimelineRequest;
 import durumungsil.majung.domain.story.dto.request.UpdateTimelineItemRequest;
+import durumungsil.majung.domain.story.dto.response.ConfirmTimelineResponse;
 import durumungsil.majung.domain.story.dto.response.TimelineItemResponse;
 import durumungsil.majung.domain.story.dto.response.TimelineResponse;
 import durumungsil.majung.domain.story.dto.response.UpdateTimelineItemResponse;
@@ -20,6 +22,8 @@ import durumungsil.majung.domain.story.repository.DestinationSelectionRepository
 import durumungsil.majung.domain.story.repository.ItineraryItemRepository;
 import durumungsil.majung.domain.story.repository.ItineraryRepository;
 import durumungsil.majung.domain.trip.entity.Trip;
+import durumungsil.majung.domain.trip.entity.TripStatus;
+import durumungsil.majung.domain.trip.repository.TripRepository;
 import durumungsil.majung.global.exception.BusinessException;
 import durumungsil.majung.global.exception.ErrorCode;
 
@@ -56,6 +60,7 @@ public class ItineraryService {
     private final ItineraryRepository itineraryRepository;
     private final ItineraryItemRepository itemRepository;
     private final TimelinePlanner timelinePlanner;
+    private final TripRepository tripRepository;
 
     /**
      * AI 타임라인 생성 - 진행 중인 스토리모드 여행 회차에 타임라인을 만든다. Gemini 로 방문일·순서·체류 시간을 정하고, 키가 없거나 실패하거나 동선이 나쁘면
@@ -68,6 +73,9 @@ public class ItineraryService {
         // AI 호출은 오래 걸릴 수 있어서 그룹 잠금은 저장 직전에 건다
         groupReader.getMemberGroup(groupId, userId);
         Trip trip = groupReader.getActiveStoryTrip(groupId);
+        if (!trip.isPlanning()) {
+            throw new BusinessException(ErrorCode.TIMELINE_ALREADY_CONFIRMED);
+        }
 
         LocalDate startDate =
                 request.startDate() != null ? request.startDate() : trip.getTravelStartDate();
@@ -110,6 +118,10 @@ public class ItineraryService {
             // AI 응답을 기다리는 사이 여행 회차가 바뀐 경우
             throw new BusinessException(ErrorCode.NO_ACTIVE_TRIP);
         }
+        if (!tripRepository.existsByIdAndStatus(trip.getId(), TripStatus.PLANNING)) {
+            // AI 응답을 기다리는 사이 방장이 타임라인을 확정한 경우 (확정한 타임라인을 지우지 않는다)
+            throw new BusinessException(ErrorCode.TIMELINE_ALREADY_CONFIRMED);
+        }
         deleteTimelines(trip.getId());
         Itinerary itinerary =
                 itineraryRepository.save(
@@ -148,6 +160,28 @@ public class ItineraryService {
         itineraryRepository.flush(); // generated_at / updated_at 반영
 
         return toResponse(groupId, itinerary, items, plan.generatedBy());
+    }
+
+    /**
+     * 타임라인 확정 (방장만) - 진행 중인 스토리모드 여행 회차의 타임라인을 확정하고 여행을 IN_PROGRESS 로 바꾼다.
+     * 확정 뒤에는 여행지 선택 저장·타임라인 재생성을 막는다. 항목 시간·메모 수정은 계속 할 수 있다.
+     */
+    @Transactional
+    public ConfirmTimelineResponse confirmTimeline(Long userId, Long groupId, Long itineraryId) {
+        Group group = groupReader.getMemberGroupForUpdate(groupId, userId);
+        groupReader.validateOwner(group, userId, ErrorCode.NOT_OWNER_CONFIRM_TIMELINE);
+        Trip trip = groupReader.getActiveStoryTrip(groupId);
+        Itinerary itinerary = getGroupItinerary(groupId, itineraryId);
+        if (!itinerary.getTrip().getId().equals(trip.getId())) {
+            // 이전 여행 회차의 타임라인
+            throw new BusinessException(ErrorCode.ITINERARY_NOT_FOUND);
+        }
+        if (!trip.isPlanning()) {
+            throw new BusinessException(ErrorCode.TIMELINE_ALREADY_CONFIRMED);
+        }
+        trip.start();
+        tripRepository.flush(); // updated_at 반영
+        return ConfirmTimelineResponse.of(groupId, itineraryId, trip);
     }
 
     /** 타임라인 조회 */

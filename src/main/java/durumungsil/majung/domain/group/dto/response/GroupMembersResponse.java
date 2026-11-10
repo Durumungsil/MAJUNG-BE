@@ -20,13 +20,15 @@ public record GroupMembersResponse(Long groupId, List<Member> members, int count
     public record Member(
             Long userId,
             String userName,
+            String profileImageUrl,
             boolean isOwner,
             boolean preferencesCompleted,
             LocalDateTime joinedAt
     ) {
         static Member of(Group group, GroupMember member, boolean preferencesCompleted) {
             Long userId = member.getUser().getId();
-            return new Member(userId, member.getUser().getUserName(), group.isOwner(userId),
+            return new Member(userId, member.getUser().getUserName(), member.getUser().getProfileImageUrl(),
+                    group.isOwner(userId),
                     preferencesCompleted, member.getJoinedAt());
         }
     }
