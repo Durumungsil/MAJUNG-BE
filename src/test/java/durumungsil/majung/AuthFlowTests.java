@@ -96,6 +96,50 @@ class AuthFlowTests {
     }
 
     @Test
+    void 구글_프로필_사진을_저장하고_다시_로그인하면_갱신한다() throws Exception {
+        given(googleIdTokenVerifier.verify("picture-token-1"))
+                .willReturn(new GoogleUserInfo("picture-sub", "picture@gmail.com", "사진", "https://lh3.googleusercontent.com/a/old"));
+        String accessToken = JsonPath.read(login("picture-token-1"), "$.data.access_token");
+        mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.profile_image_url").value("https://lh3.googleusercontent.com/a/old"));
+
+        // 사진을 바꾸고 다시 로그인하면 새 사진으로 갱신
+        given(googleIdTokenVerifier.verify("picture-token-2"))
+                .willReturn(new GoogleUserInfo("picture-sub", "picture@gmail.com", "사진", "https://lh3.googleusercontent.com/a/new"));
+        login("picture-token-2");
+        mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + accessToken))
+                .andExpect(jsonPath("$.data.profile_image_url").value("https://lh3.googleusercontent.com/a/new"));
+
+        // picture 클레임이 없으면 기존 사진 유지
+        given(googleIdTokenVerifier.verify("picture-token-3"))
+                .willReturn(new GoogleUserInfo("picture-sub", "picture@gmail.com", "사진"));
+        login("picture-token-3");
+        mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + accessToken))
+                .andExpect(jsonPath("$.data.profile_image_url").value("https://lh3.googleusercontent.com/a/new"));
+    }
+
+    @Test
+    void 그룹_멤버_목록에_프로필_사진이_내려간다() throws Exception {
+        given(googleIdTokenVerifier.verify("member-picture-token"))
+                .willReturn(new GoogleUserInfo("member-picture-sub", "mp@gmail.com", "멤버사진", "https://lh3.googleusercontent.com/a/member"));
+        String accessToken = JsonPath.read(login("member-picture-token"), "$.data.access_token");
+        String created = mockMvc.perform(post("/api/v1/groups")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"group_name\":\"사진 그룹\",\"region\":\"부산\",\"max_members\":4,"
+                                + "\"travel_start_date\":\"" + java.time.LocalDate.now() + "\","
+                                + "\"travel_end_date\":\"" + java.time.LocalDate.now().plusDays(1) + "\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Number groupId = JsonPath.read(created, "$.data.group_id");
+
+        mockMvc.perform(get("/api/v1/groups/" + groupId + "/members").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.members[0].profile_image_url").value("https://lh3.googleusercontent.com/a/member"));
+    }
+
+    @Test
     void 토큰의_유저로_컨트롤러가_동작한다() throws Exception {
         given(googleIdTokenVerifier.verify("google-token-2"))
                 .willReturn(new GoogleUserInfo("google-sub-2", "user2@gmail.com", "유저2"));

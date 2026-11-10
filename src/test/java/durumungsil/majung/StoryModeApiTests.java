@@ -325,6 +325,103 @@ class StoryModeApiTests {
     }
 
     @Test
+    void ownerConfirmsTimelineAndTripStartsAndPlanningIsLocked() throws Exception {
+        var f = seed(true, TripMode.STORY);
+        long member =
+                tx.execute(
+                        status -> {
+                            var user =
+                                    User.builder().googleSub(UUID.randomUUID().toString()).build();
+                            em.persist(user);
+                            em.persist(
+                                    GroupMember.builder()
+                                            .group(em.find(Group.class, f.group()))
+                                            .user(user)
+                                            .build());
+                            return user.getId();
+                        });
+        when(client.location(anyString())).thenReturn(Optional.of(new Location(35.1, 129)));
+        String selection =
+                mapper.writeValueAsString(
+                        Map.of(
+                                "destinations",
+                                List.of(
+                                        Map.of(
+                                                "place_id", f.id(1),
+                                                "order", 1,
+                                                "visit_date", f.date().toString(),
+                                                "category", "CULTURE"))));
+        mvc.perform(
+                        put(f.base() + "/destinations/selection")
+                                .header("Authorization", auth(f.owner()))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(selection))
+                .andExpect(status().isOk());
+        var timeline =
+                data(
+                        mvc.perform(
+                                        post(f.base() + "/itineraries/timeline")
+                                                .header("Authorization", auth(f.owner()))
+                                                .contentType(MediaType.APPLICATION_JSON)
+                                                .content("{}"))
+                                .andExpect(status().isCreated())
+                                .andReturn()
+                                .getResponse()
+                                .getContentAsString());
+        long itinerary = timeline.path("itinerary_id").asLong();
+        long visitItem = timeline.path("days").path(0).path("items").path(0).path("item_id").asLong();
+        String confirm = f.base() + "/itineraries/" + itinerary + "/confirm";
+
+        // 방장만 확정할 수 있고, 그룹 밖 사용자는 404
+        mvc.perform(post(confirm).header("Authorization", auth(member)))
+                .andExpect(status().isForbidden());
+        mvc.perform(post(confirm).header("Authorization", auth(f.outsider())))
+                .andExpect(status().isNotFound());
+        mvc.perform(
+                        post(f.base() + "/itineraries/999999/confirm")
+                                .header("Authorization", auth(f.owner())))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(post(confirm).header("Authorization", auth(f.owner())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.trip_id").value(f.trip()))
+                .andExpect(jsonPath("$.data.itinerary_id").value(itinerary))
+                .andExpect(jsonPath("$.data.status").value("IN_PROGRESS"))
+                .andExpect(jsonPath("$.data.confirmed_at").isNotEmpty());
+        mvc.perform(get(f.base()).header("Authorization", auth(member)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("IN_PROGRESS"));
+
+        // 확정 뒤에는 다시 확정·여행지 선택·타임라인 재생성을 막는다
+        mvc.perform(post(confirm).header("Authorization", auth(f.owner())))
+                .andExpect(status().isConflict());
+        mvc.perform(
+                        put(f.base() + "/destinations/selection")
+                                .header("Authorization", auth(f.owner()))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(selection))
+                .andExpect(status().isConflict());
+        mvc.perform(
+                        post(f.base() + "/itineraries/timeline")
+                                .header("Authorization", auth(f.owner()))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{}"))
+                .andExpect(status().isConflict());
+        // 확정한 타임라인은 그대로 남아 있고, 항목 메모·시간 수정은 계속 할 수 있다
+        mvc.perform(
+                        patch(f.base() + "/itineraries/" + itinerary + "/items/" + visitItem)
+                                .header("Authorization", auth(f.owner()))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"memo\":\"확정 후 메모\"}"))
+                .andExpect(status().isOk());
+
+        // 여행을 끝내면 상태는 COMPLETED
+        mvc.perform(post(f.base() + "/mode/end").header("Authorization", auth(f.owner())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("COMPLETED"));
+    }
+
+    @Test
     void nearbyUsesCachedBaseRectangleAndFiltersRadiusAndAllergyTypes() throws Exception {
         var f = seed(true, TripMode.STORY);
         when(client.location(f.id(1))).thenReturn(Optional.of(new Location(35.1, 129)));

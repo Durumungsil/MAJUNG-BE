@@ -35,11 +35,12 @@ public class AuthService {
         GoogleUserInfo google = googleIdTokenVerifier.verify(idToken);
 
         Optional<User> existing = userRepository.findByGoogleSub(google.sub());
-        existing.ifPresent(found -> found.updateProfile(google.email(), google.name()));
+        existing.ifPresent(found -> found.updateProfile(google.email(), google.name(), google.picture()));
         User user = existing.orElseGet(() -> userRepository.save(User.builder()
                 .googleSub(google.sub())
                 .email(google.email())
                 .userName(google.name())
+                .profileImageUrl(google.picture())
                 .build()));
 
         refreshTokenRepository.deleteExpired(user.getId(), LocalDateTime.now());

@@ -39,6 +39,9 @@ public class DestinationSelectionService {
             Long userId, Long groupId, SaveDestinationSelectionRequest request) {
         groupReader.getMemberGroupForUpdate(groupId, userId);
         Trip trip = groupReader.getActiveStoryTrip(groupId);
+        if (!trip.isPlanning()) {
+            throw new BusinessException(ErrorCode.TIMELINE_ALREADY_CONFIRMED);
+        }
         List<SaveDestinationSelectionRequest.Item> items = request.destinations();
 
         Set<Integer> orders = new HashSet<>();

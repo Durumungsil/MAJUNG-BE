@@ -82,6 +82,22 @@ public class Trip {
         this.mode = mode;
     }
 
+    /** 여행 시작 - 계획(PLANNING)을 마치고 진행 중(IN_PROGRESS)으로 바꾼다 */
+    public void start() {
+        if (status != TripStatus.PLANNING) {
+            throw new IllegalStateException("계획 중인 여행만 시작할 수 있습니다.");
+        }
+        if (mode == null) {
+            throw new IllegalStateException("모드가 선택되지 않은 여행입니다.");
+        }
+        this.status = TripStatus.IN_PROGRESS;
+    }
+
+    /** 계획 중(PLANNING)인지. 여행지 선택·타임라인 생성은 계획 중에만 할 수 있다 */
+    public boolean isPlanning() {
+        return status == TripStatus.PLANNING;
+    }
+
     /** 모드 종료 - 여행 회차를 끝낸다. 이미 끝난 여행은 다시 끝낼 수 없다 */
     public void complete() {
         if (!isActive()) {

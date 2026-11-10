@@ -36,6 +36,7 @@ public enum ErrorCode {
     NOT_OWNER_SELECT_MODE(HttpStatus.FORBIDDEN, "그룹 대표자만 모드를 확정할 수 있습니다."),
     NOT_OWNER_CREATE_TRIP(HttpStatus.FORBIDDEN, "그룹 대표자만 여행을 만들 수 있습니다."),
     NOT_OWNER_END_MODE(HttpStatus.FORBIDDEN, "그룹 대표자만 모드를 종료할 수 있습니다."),
+    NOT_OWNER_CONFIRM_TIMELINE(HttpStatus.FORBIDDEN, "그룹 대표자만 타임라인을 확정할 수 있습니다."),
     OWNER_CANNOT_LEAVE(HttpStatus.CONFLICT, "그룹 대표자는 대표자 변경 후 탈퇴할 수 있습니다."),
 
     // 초대
@@ -81,6 +82,7 @@ public enum ErrorCode {
     ITINERARY_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "타임라인 항목을 찾을 수 없습니다."),
     INVALID_ITINERARY_ITEM_SCHEDULE(HttpStatus.BAD_REQUEST, "종료 시간이 시작 시간보다 빠르거나 다른 일정과 겹칩니다."),
     MOVE_ITEM_NOT_EDITABLE(HttpStatus.BAD_REQUEST, "이동 항목은 직접 수정할 수 없습니다."),
+    TIMELINE_ALREADY_CONFIRMED(HttpStatus.CONFLICT, "이미 타임라인을 확정한 여행입니다. 여행지 선택과 타임라인 생성은 확정 전에만 할 수 있습니다."),
 
     // 모험모드
     ADVENTURE_CONDITION_UNSATISFIED(HttpStatus.CONFLICT, "그룹 최소 조건을 만족하는 커리큘럼을 생성할 수 없습니다."),

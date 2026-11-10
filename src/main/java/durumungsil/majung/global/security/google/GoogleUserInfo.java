@@ -6,6 +6,11 @@ package durumungsil.majung.global.security.google;
  * @param sub   구글 계정 고유 ID (유저 식별 키)
  * @param email 이메일 (참고용)
  * @param name  이름 (profile scope 가 없으면 null)
+ * @param picture 프로필 사진 URL (profile scope 가 없거나 사진이 없으면 null)
  */
-public record GoogleUserInfo(String sub, String email, String name) {
+public record GoogleUserInfo(String sub, String email, String name, String picture) {
+
+    public GoogleUserInfo(String sub, String email, String name) {
+        this(sub, email, name, null);
+    }
 }
